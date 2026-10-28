@@ -3,8 +3,10 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { RepoProvider, useRepo } from './data/RepoContext';
 import { ThemeProvider } from './theme/theme';
 import { HomePage } from './pages/HomePage';
+import { AddTrackPage } from './pages/AddTrackPage';
+import { TrackPage } from './pages/TrackPage';
 
-/** Заглушки до Task 7–8. */
+/** Заглушки до Task 8. */
 function Stub({ name }: { name: string }) {
   return <div className="page-stub">{name}</div>;
 }
@@ -27,11 +29,12 @@ function Shell() {
   return (
     <div className="app">
       <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/track/:id" element={<Stub name="track" />} />
-      <Route path="/add" element={<Stub name="add" />} />
-      <Route path="/settings" element={<Stub name="settings" />} />
-      <Route path="/login" element={<Stub name="login" />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/track/:id" element={<TrackPage />} />
+        <Route path="/add" element={<AddTrackPage />} />
+        <Route path="/add/:trackId" element={<AddTrackPage />} />
+        <Route path="/settings" element={<Stub name="settings" />} />
+        <Route path="/login" element={<Stub name="login" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

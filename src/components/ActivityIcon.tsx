@@ -1,5 +1,13 @@
 import type { Category } from '../data/types';
 
+/** Подписи категорий для радио-кнопок и страницы трека. */
+export const CATEGORY_LABELS: Record<Category, string> = {
+  hike: 'пеший',
+  bike: 'вело',
+  run: 'бег',
+  ski: 'лыжи',
+};
+
 /** Линейные иконки активностей; stroke наследует currentColor. */
 export function ActivityIcon({ category }: { category: Category }) {
   return (

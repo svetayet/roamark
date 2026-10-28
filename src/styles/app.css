@@ -151,3 +151,183 @@ button {
   padding: 24px;
   color: var(--text-dim);
 }
+
+/* Внутренние страницы */
+.page {
+  padding: 0 16px 32px;
+}
+
+.page__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.page__header h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 8px 0;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+/* Форма трека */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+  border: none;
+  padding: 0;
+}
+
+.field label,
+.field legend {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.field input[type='text'],
+.field input:not([type]),
+.field select,
+.field textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+}
+
+.field input[type='file'] {
+  color: var(--text-dim);
+}
+
+.field__radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.radio:has(input:checked) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.field__counter {
+  font-size: 12px;
+  color: var(--text-dim);
+  align-self: flex-end;
+}
+
+.field__ok {
+  margin: 0;
+  color: var(--primary);
+}
+
+.field__error {
+  margin: 0;
+  color: #c0392b;
+}
+
+[data-theme='dark'] .field__error {
+  color: #e57368;
+}
+
+.form-errors {
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  color: #c0392b;
+  list-style: none;
+}
+
+[data-theme='dark'] .form-errors {
+  color: #e57368;
+}
+
+.btn--big {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn--danger {
+  color: #c0392b;
+}
+
+[data-theme='dark'] .btn--danger {
+  color: #e57368;
+}
+
+/* Страница трека */
+.page--track {
+  padding: 0;
+}
+
+.track-map {
+  height: 55vh;
+  min-height: 260px;
+}
+
+.page--track .page__header {
+  padding: 8px 16px 0;
+}
+
+.track-meta {
+  padding: 0 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.track-meta__name {
+  margin: 0;
+  font-size: 20px;
+}
+
+.track-meta__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.track-meta__desc {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.track-meta__download {
+  margin-top: 6px;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.track-meta__actions {
+  display: flex;
+  gap: 10px;
+}
