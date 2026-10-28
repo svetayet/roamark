@@ -1,0 +1,153 @@
+/* Каркас приложения: мобильный сценарий, 360px+ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  min-height: 100dvh;
+}
+
+/* Шапка главной */
+.home__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.home__brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.home__districts {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+}
+
+.home__add {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+[data-theme='dark'] .home__add {
+  color: #1f2925;
+}
+
+/* Список треков */
+.home__tracks {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.track-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+}
+
+.track-card__map {
+  flex: none;
+  width: 96px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.track-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.track-card__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* Пустой район */
+.home__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-dim);
+}
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+[data-theme='dark'] .btn--primary {
+  color: #1f2925;
+}
+
+.page-stub {
+  padding: 24px;
+  color: var(--text-dim);
+}
