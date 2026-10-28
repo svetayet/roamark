@@ -5,11 +5,8 @@ import { ThemeProvider } from './theme/theme';
 import { HomePage } from './pages/HomePage';
 import { AddTrackPage } from './pages/AddTrackPage';
 import { TrackPage } from './pages/TrackPage';
-
-/** Заглушки до Task 8. */
-function Stub({ name }: { name: string }) {
-  return <div className="page-stub">{name}</div>;
-}
+import { LoginPage } from './pages/LoginPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 function Shell() {
   const repo = useRepo();
@@ -33,8 +30,8 @@ function Shell() {
         <Route path="/track/:id" element={<TrackPage />} />
         <Route path="/add" element={<AddTrackPage />} />
         <Route path="/add/:trackId" element={<AddTrackPage />} />
-        <Route path="/settings" element={<Stub name="settings" />} />
-        <Route path="/login" element={<Stub name="login" />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

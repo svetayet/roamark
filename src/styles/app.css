@@ -66,6 +66,20 @@ button {
   color: #1f2925;
 }
 
+.home__settings {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 /* Список треков */
 .home__tracks {
   list-style: none;
@@ -330,4 +344,117 @@ button {
 .track-meta__actions {
   display: flex;
   gap: 10px;
+}
+
+/* Настройки */
+.settings__section {
+  margin: 0 0 24px;
+}
+
+.settings__section h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+}
+
+.settings__districts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings__district {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+}
+
+.settings__district-name {
+  flex: 1;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.settings__rename {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.link--danger {
+  color: #c0392b;
+}
+
+[data-theme='dark'] .link--danger {
+  color: #e57368;
+}
+
+.settings__hint {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.settings__logout {
+  font-size: 16px;
+}
+
+/* Логин */
+.login {
+  max-width: 360px;
+  margin: 0 auto;
+  padding-top: 18vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login__title {
+  margin: 0;
+  font-size: 32px;
+}
+
+.login__lead {
+  margin: 0 0 12px;
+  color: var(--text-dim);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login__form label {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.login__form input {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+}
+
+.login__sent {
+  color: var(--primary);
+  font-weight: 600;
 }
