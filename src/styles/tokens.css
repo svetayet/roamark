@@ -1,0 +1,19 @@
+:root,
+[data-theme='light'] {
+  --primary: #0f6b51;
+  --secondary: #2e9b72;
+  --bg: #f0f3f1;
+  --card: #ffffff;
+  --card-border: #dfe7e2;
+  --text: #1f2925;
+  --text-dim: #66766f;
+}
+
+[data-theme='dark'] {
+  --primary: #7fc8a6;
+  --bg: #222725;
+  --card: #2a302d;
+  --card-border: #353d39;
+  --text: #e8edea;
+  --text-dim: #97a5a0;
+}
