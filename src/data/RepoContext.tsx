@@ -1,17 +1,15 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { InMemoryTrackRepository } from './memory';
+import { createSupabaseRepository } from './supabase/repository';
 import type { TrackRepository } from './repository';
 
 /**
- * Выбор реализации хранилища: с настроенным Supabase — она,
- * без — демо-репозиторий в памяти.
- * TODO(Task 9): сюда подключается SupabaseTrackRepository из ./supabase/repository.
+ * Выбор реализации хранилища: настроен Supabase — она,
+ * нет — демо-репозиторий в памяти. Ключи читаются только здесь и в client.ts.
  */
 function createDefaultRepo(): TrackRepository {
-  if (import.meta.env.VITE_SUPABASE_URL) {
-    // До Task 9 работаем на демо-данных даже с заданным URL,
-    // чтобы приложение оставалось живым.
-    return new InMemoryTrackRepository({ demo: true });
+  if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    return createSupabaseRepository();
   }
   return new InMemoryTrackRepository({ demo: true });
 }

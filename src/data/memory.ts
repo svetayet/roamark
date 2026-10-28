@@ -1,4 +1,4 @@
-import type { LatLng, TrackMetaInput } from './types';
+import type { TrackMetaInput } from './types';
 import {
   PREVIEW_MAX_POINTS,
   RepositoryError,
@@ -7,7 +7,8 @@ import {
   type TrackRepository,
 } from './repository';
 import { parseGpxSegments } from '../logic/gpx';
-import { decimate, segmentsBounds, segmentsDistanceKm } from '../logic/geo';
+import { segmentsBounds, segmentsDistanceKm } from '../logic/geo';
+import { buildPreview } from './preview';
 
 /**
  * Реализация TrackRepository в памяти: демо-режим и тесты.
@@ -176,14 +177,4 @@ export class InMemoryTrackRepository implements TrackRepository {
     if (!track) throw new RepositoryError('Трек не найден.');
     return track;
   }
-}
-
-/** Превью с общим бюджетом точек: пропорционально длине сегментов, минимум 2 на сегмент. */
-function buildPreview(segments: LatLng[][], budget: number): LatLng[][] {
-  const total = segments.reduce((n, s) => n + s.length, 0);
-  if (total <= budget) return segments;
-  return segments.map((s) => {
-    const share = Math.max(2, Math.round((s.length / total) * budget));
-    return decimate(s, Math.min(share, s.length));
-  });
 }
