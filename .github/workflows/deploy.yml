@@ -24,10 +24,6 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Env for the app
-        run: |
-          echo "VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.production
-          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.production
       - name: Compute base path
         id: base
         run: |
