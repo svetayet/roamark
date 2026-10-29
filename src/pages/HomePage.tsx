@@ -14,6 +14,8 @@ export function HomePage() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(() => readSelectedDistrict());
   const [tracks, setTracks] = useState<Track[]>([]);
+  // Пока районы не пришли, пустой список вводит в заблуждение («здесь ничего нет»).
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     repo.listDistricts().then((list) => {
@@ -22,6 +24,7 @@ export function HomePage() {
         if (current && list.some((d) => d.id === current)) return current;
         return (list.find((d) => d.isPrimary) ?? list[0])?.id ?? null;
       });
+      setLoading(false);
     });
   }, [repo]);
 
@@ -85,7 +88,11 @@ export function HomePage() {
           </svg>
         </button>
       </header>
-      {tracks.length === 0 ? (
+      {loading ? (
+        <div className="home__empty">
+          <p>загружаем…</p>
+        </div>
+      ) : tracks.length === 0 ? (
         <div className="home__empty">
           <p>здесь пока ничего нет</p>
           <button className="btn btn--primary" onClick={() => navigate('/add')}>

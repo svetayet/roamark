@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import { RepoProvider } from '../data/RepoContext';
 import { InMemoryTrackRepository } from '../data/memory';
+import type { District } from '../data/repository';
 
 vi.mock('../map/MapView', () => ({ MapView: () => <div data-testid="mini-map" /> }));
 
@@ -89,4 +90,17 @@ test('селект районов: первым основной со звёзд
   expect(select.options[0].textContent).toContain('Далеко');
   expect(select.options[1].textContent).toContain('Рядом');
   expect(select.options[1].textContent).not.toContain('★');
+});
+
+test('пока районы грузятся — «загружаем…», а не ложное «здесь пока ничего нет»', async () => {
+  const { repo } = await repoWithTrack();
+  const orig = repo.listDistricts.bind(repo);
+  let release!: (list: District[]) => void;
+  const gate = new Promise<District[]>((res) => (release = res));
+  vi.spyOn(repo, 'listDistricts').mockImplementation(() => gate);
+  renderAt(repo);
+  expect(screen.getByText('загружаем…')).toBeTruthy();
+  expect(screen.queryByText('здесь пока ничего нет')).toBeNull();
+  release(await orig());
+  expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
 });

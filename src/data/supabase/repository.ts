@@ -175,7 +175,10 @@ class SupabaseTrackRepository implements TrackRepository {
       storagePath,
       new Blob([gpxText], { type: 'application/gpx+xml' }),
     );
-    if (up.error) throw new RepositoryError('Не получилось загрузить GPX-файл. Попробуйте ещё раз.');
+    if (up.error) {
+      // Причину (обрыв сети, политика бакета) показываем рядом с человеческой фразой.
+      throw new RepositoryError(`Не получилось загрузить GPX-файл. Причина: ${up.error.message}`);
+    }
 
     const { data, error } = await this.client
       .from('tracks')
@@ -314,6 +317,11 @@ function mapTrack(row: Rows): Track {
 function dbError(e: DbError | null): RepositoryError {
   if (e?.code === '23503') {
     return new RepositoryError('В районе есть треки — сначала перенесите их в другой район.');
+  }
+  // supabase-js оборачивает обрыв сети в «TypeError: Failed to fetch» — сырой
+  // английский текст в подсказке ни о чём не говорит.
+  if (e?.message?.startsWith('TypeError:')) {
+    return new RepositoryError('Связь с сервером оборвалась. Проверьте интернет и попробуйте ещё раз.');
   }
   return new RepositoryError(e?.message || 'Ошибка хранилища. Попробуйте ещё раз.');
 }

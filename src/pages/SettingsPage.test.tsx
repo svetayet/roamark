@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import { RepoProvider } from '../data/RepoContext';
 import { InMemoryTrackRepository } from '../data/memory';
+import type { District } from '../data/repository';
 import { ThemeProvider } from '../theme/theme';
 
 const { SettingsPage } = await import('./SettingsPage');
@@ -164,4 +165,43 @@ test('ошибка переименования показана подсказ�
   fireEvent.input(input, { target: { value: 'Совсем далеко' } });
   row.getByRole('button', { name: /готово/ }).click();
   expect(await screen.findByText('Не получилось. Попробуй ещё раз.')).toBeTruthy();
+});
+
+test('пока район создаётся, «добавить» занята и подписана «добавляем…»', async () => {
+  const { repo } = await setup();
+  let release!: (d: District) => void;
+  const gate = new Promise<District>((res) => (release = res));
+  vi.spyOn(repo, 'createDistrict').mockImplementationOnce(() => gate);
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  fireEvent.input(screen.getByLabelText('имя нового района'), {
+    target: { value: 'Хамар-Дабан' },
+  });
+  screen.getByRole('button', { name: /^добавить$/ }).click();
+  const busy = (await screen.findByRole('button', { name: /добавляем/ })) as HTMLButtonElement;
+  expect(busy.disabled).toBe(true);
+  release({ id: 'new', name: 'Хамар-Дабан', isPrimary: false });
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: /^добавить$/ })).toBeTruthy(),
+  );
+});
+
+test('пока район удаляется, действия в списке недоступны', async () => {
+  const { repo } = await setup();
+  let release!: () => void;
+  vi.spyOn(repo, 'deleteDistrict').mockImplementationOnce(
+    () => new Promise<void>((res) => (release = res)),
+  );
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  rowOf('Далеко').getByRole('button', { name: /удалить/ }).click();
+  await waitFor(() => {
+    const del = rowOf('Далеко').getByRole('button', { name: /удалить/ }) as HTMLButtonElement;
+    expect(del.disabled).toBe(true);
+  });
+  release();
+  await waitFor(() => {
+    const del = rowOf('Далеко').getByRole('button', { name: /удалить/ }) as HTMLButtonElement;
+    expect(del.disabled).toBe(false);
+  });
 });

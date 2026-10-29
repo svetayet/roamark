@@ -355,3 +355,21 @@ test('deleteDistrict с треками (FK 23503) → подсказка «сн�
   fake.failWith = { message: 'violates foreign key constraint', code: '23503' };
   await expect(repo.deleteDistrict(home.id)).rejects.toThrow(/сначала перенесите их в другой район/i);
 });
+
+test('обрыв сети (TypeError: Failed to fetch) → человеческая фраза вместо сырого текста', async () => {
+  const fake = new FakeSupabase();
+  const { repo } = await repoWithSession(fake);
+  fake.failWith = { message: 'TypeError: Failed to fetch' };
+  await expect(repo.createDistrict('Хамар-Дабан')).rejects.toThrow(
+    /связь с сервером оборвалась/i,
+  );
+});
+
+test('ошибка загрузки GPX называет причину (обрыв/политика видны сразу)', async () => {
+  const fake = new FakeSupabase();
+  const { repo, home } = await repoWithSession(fake);
+  fake.failWith = { message: 'new row violates row-level security policy' };
+  await expect(
+    repo.addTrack(gpxFile(), { districtId: home.id, category: 'hike', name: 'Т' }),
+  ).rejects.toThrow(/GPX-файл[\s\S]*row-level security/);
+});

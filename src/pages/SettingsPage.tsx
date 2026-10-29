@@ -26,6 +26,10 @@ export function SettingsPage() {
   const [hint, setHint] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
   const [newName, setNewName] = useState('');
+  // Бесплатный Supabase отвечает медленно: без признака занятости кнопки
+  // выглядят мёртвыми, а повторные клики плодят дубли.
+  const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const reload = () => repo.listDistricts().then(setDistricts);
   useEffect(() => {
@@ -34,45 +38,59 @@ export function SettingsPage() {
 
   const makePrimary = async (id: string) => {
     setHint(null);
+    setBusy(true);
     try {
       await repo.setPrimaryDistrict(id);
       await reload();
     } catch (e) {
       setHint(hintOf(e));
+    } finally {
+      setBusy(false);
     }
   };
 
   const remove = async (id: string) => {
     setHint(null);
+    setBusy(true);
     try {
       await repo.deleteDistrict(id);
       await reload();
     } catch (e) {
       setHint(hintOf(e));
+    } finally {
+      setBusy(false);
     }
   };
 
   const rename = async (id: string) => {
     if (!editing || editing.id !== id || !editing.draft.trim()) return;
+    setBusy(true);
     try {
       await repo.renameDistrict(id, editing.draft);
       setEditing(null);
       await reload();
     } catch (e) {
       setHint(hintOf(e));
+    } finally {
+      setBusy(false);
     }
   };
 
   const create = async () => {
     const name = newName.trim();
-    if (!name) return;
+    if (!name || busy) return;
     setHint(null);
+    setBusy(true);
+    setCreating(true);
     try {
       await repo.createDistrict(name);
       setNewName('');
       await reload();
     } catch (e) {
       setHint(hintOf(e));
+    } finally {
+      setBusy(false);
+      setCreating(false);
     }
   };
 
@@ -139,14 +157,22 @@ export function SettingsPage() {
                     {d.name}
                   </span>
                   {!d.isPrimary && (
-                    <button className="link" onClick={() => makePrimary(d.id)}>
+                    <button className="link" disabled={busy} onClick={() => makePrimary(d.id)}>
                       сделать основным
                     </button>
                   )}
-                  <button className="link" onClick={() => setEditing({ id: d.id, draft: d.name })}>
+                  <button
+                    className="link"
+                    disabled={busy}
+                    onClick={() => setEditing({ id: d.id, draft: d.name })}
+                  >
                     переименовать
                   </button>
-                  <button className="link link--danger" onClick={() => remove(d.id)}>
+                  <button
+                    className="link link--danger"
+                    disabled={busy}
+                    onClick={() => remove(d.id)}
+                  >
                     удалить
                   </button>
                 </>
@@ -165,8 +191,8 @@ export function SettingsPage() {
               if (e.key === 'Enter') void create();
             }}
           />
-          <button className="btn" onClick={create} disabled={!newName.trim()}>
-            добавить
+          <button className="btn" onClick={create} disabled={busy || !newName.trim()}>
+            {creating ? 'добавляем…' : 'добавить'}
           </button>
         </div>
         {hint && <p className="settings__hint">{hint}</p>}
