@@ -84,8 +84,10 @@ export function SpikePage() {
       setSteps((prev) => prev.map((s, i) => (i === 3 ? { ...s, status: 'ok' } : s)));
       cursor = 4;
 
-      // 5. Скачиваем тем же браузером и сверяем байт-в-байт.
-      res = await fetch(downloadHref);
+      // 5. Скачиваем тем же браузером и сверяем байт-в-байт. Без токена
+      //    downloader отвечает 403 (проверено по логам браузера), поэтому
+      //    Authorization едет и сюда.
+      res = await fetch(downloadHref, { headers: auth });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = new TextDecoder().decode(await res.arrayBuffer());
       if (text !== PAYLOAD) throw new Error('скачанное отличается от залитого');
