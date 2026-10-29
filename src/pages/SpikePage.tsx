@@ -63,14 +63,14 @@ export function SpikePage() {
     let cursor = 0;
     try {
       // 1. Токен: кто я.
-      let res = await fetch(`${API}/user`, { headers: auth });
+      let res = await fetch(`${API}/user`, { headers: auth, cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const me: { login: string } = await res.json();
       mark(0, 'ok', `@${me.login}`);
       cursor = 1;
 
       // 2. Репозиторий сайта виден токену.
-      res = await fetch(`${API}/repos/${REPO}`, { headers: auth });
+      res = await fetch(`${API}/repos/${REPO}`, { headers: auth, cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const repo: { private: boolean } = await res.json();
       mark(1, 'ok', repo.private ? 'репозиторий закрытый' : 'репозиторий публичный');
@@ -78,7 +78,10 @@ export function SpikePage() {
 
       // 3. Заливаем: если файл уже лежит (прошлый оборванный запуск),
       //    обновление требует его sha.
-      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, { headers: auth });
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, {
+        headers: auth,
+        cache: 'no-store',
+      });
       let sha: string | undefined;
       if (res.ok) {
         const existing: { sha: string } = await res.json();
@@ -97,8 +100,12 @@ export function SpikePage() {
       mark(2, 'ok', sha ? 'файл обновлён' : 'файл создан');
       cursor = 3;
 
-      // 4. Читаем через API и сверяем.
-      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, { headers: auth });
+      // 4. Читаем через API и сверяем. no-store: у GitHub ответы кэшируются
+      //    на 60 секунд, а нам всегда нужна свежая картина.
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, {
+        headers: auth,
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const file: { content: string; sha: string } = await res.json();
       if (fromBase64(file.content) !== PAYLOAD) throw new Error('прочитанное отличается от залитого');
@@ -108,10 +115,18 @@ export function SpikePage() {
       // 5. Скачиваем сырыми байтами — так синхронизация будет забирать GPX.
       res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, {
         headers: { ...auth, Accept: 'application/vnd.github.raw' },
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const raw = new TextDecoder().decode(await res.arrayBuffer());
-      if (raw !== PAYLOAD) throw new Error('сырые байты отличаются от залитых');
+      const rawBytes = await res.arrayBuffer();
+      const raw = new TextDecoder().decode(rawBytes);
+      // При несовпадении показываем, что именно пришло, — иначе не понять,
+      // получил браузер JSON вместо байтов, пустоту или битую кодировку.
+      if (raw !== PAYLOAD)
+        throw new Error(
+          `сырые байты отличаются от залитых (${rawBytes.byteLength} Б: ` +
+            `${raw.slice(0, 40) || 'пусто'})`,
+        );
       mark(4, 'ok');
       cursor = 5;
 
