@@ -36,7 +36,7 @@ function done(tx: IDBTransaction): Promise<void> {
   });
 }
 
-export function idbPut(db: IDBDatabase, store: string, value: { id: string }): Promise<void> {
+export function idbPut<T extends { id: string }>(db: IDBDatabase, store: string, value: T): Promise<void> {
   const tx = db.transaction(store, 'readwrite');
   tx.objectStore(store).put(value);
   return done(tx);
