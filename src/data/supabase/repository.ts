@@ -53,7 +53,11 @@ export interface SupabaseLike {
   from(table: string): Builder;
   storage: {
     from(bucket: string): {
-      upload(path: string, blob: Blob): PromiseLike<{ error: DbError | null }>;
+      upload(
+        path: string,
+        blob: Blob,
+        options?: { upsert?: boolean },
+      ): PromiseLike<{ error: DbError | null }>;
       createSignedUrl(
         path: string,
         seconds: number,
@@ -171,13 +175,18 @@ class SupabaseTrackRepository implements TrackRepository {
     const storagePath = `${id}.gpx`;
     const bounds = segmentsBounds(segments);
 
-    const up = await this.client.storage.from('gpx').upload(
-      storagePath,
-      new Blob([gpxText], { type: 'application/gpx+xml' }),
+    // Обрывы на медленном интернете лечатся повторами; upsert делает повтор
+    // идемпотентным (перезапишет файл, а не упрётся в «уже существует»).
+    const upErr = await uploadWithRetry(() =>
+      this.client.storage
+        .from('gpx')
+        .upload(storagePath, new Blob([gpxText], { type: 'application/gpx+xml' }), {
+          upsert: true,
+        }),
     );
-    if (up.error) {
+    if (upErr) {
       // Причину (обрыв сети, политика бакета) показываем рядом с человеческой фразой.
-      throw new RepositoryError(`Не получилось загрузить GPX-файл. Причина: ${up.error.message}`);
+      throw new RepositoryError(`Не получилось загрузить GPX-файл. Причина: ${upErr.message}`);
     }
 
     const { data, error } = await this.client
@@ -324,6 +333,28 @@ function dbError(e: DbError | null): RepositoryError {
     return new RepositoryError('Связь с сервером оборвалась. Проверьте интернет и попробуйте ещё раз.');
   }
   return new RepositoryError(e?.message || 'Ошибка хранилища. Попробуйте ещё раз.');
+}
+
+const UPLOAD_ATTEMPTS = 3;
+const UPLOAD_RETRY_DELAY_MS = 1500;
+
+/**
+ * Повтор загрузки файла при обрывах сети («Failed to fetch» и похожее).
+ * Систематические ошибки (политика бакета, нет бакета) повторами не лечатся —
+ * возвращаются сразу.
+ */
+export async function uploadWithRetry(
+  upload: () => PromiseLike<{ error: DbError | null }>,
+  attempts: number = UPLOAD_ATTEMPTS,
+  delayMs: number = UPLOAD_RETRY_DELAY_MS,
+): Promise<DbError | null> {
+  for (let attempt = 1; ; attempt++) {
+    const { error } = await upload();
+    if (!error) return null;
+    const transient = /fetch|network/i.test(error.message);
+    if (!transient || attempt >= attempts) return error;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
 }
 
 function throwIf(e: DbError | null): void {

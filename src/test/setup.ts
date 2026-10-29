@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { beforeEach } from 'vitest';
 
 // В окружении vitest 4 + jsdom глобальный localStorage/sessionStorage может
 // оказаться пустым стабом самого Node (--localstorage-file без пути) и
@@ -25,6 +26,13 @@ for (const name of ['localStorage', 'sessionStorage'] as const) {
     Object.defineProperty(globalThis, name, { value: storage, configurable: true });
   }
 }
+
+// Кэш и выбранный район живут в localStorage/sessionStorage — между тестами
+// состояние не должно протекать.
+beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
 
 // jsdom без matchMedia — ThemeProvider слушает системную тему.
 if (typeof window.matchMedia !== 'function') {

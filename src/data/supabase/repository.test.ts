@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { createSupabaseRepository } from './repository';
+import { createSupabaseRepository, uploadWithRetry } from './repository';
 import { RepositoryError } from '../repository';
 import { encodePreview, decodePreview } from '../preview';
 
@@ -105,6 +105,9 @@ class FakeSupabase {
   otpCalls: { email: string; options?: { emailRedirectTo?: string } }[] = [];
   signedUrlCalls: [string, number, { download?: string } | undefined][] = [];
   uploads: [string, Blob][] = [];
+  uploadOptions: ({ upsert?: boolean } | undefined)[] = [];
+  // Ошибки загрузки файла: каждая тратится на одну попытку (очередь).
+  uploadFailures: { message: string; code?: string }[] = [];
   removedFiles: string[] = [];
   failWith: { message: string; code?: string } | null = null;
   session: { user: { id: string; email: string } } | null = null;
@@ -146,10 +149,11 @@ class FakeSupabase {
 
   storage = {
     from: (bucket: string) => ({
-      upload: async (path: string, blob: Blob) => {
-        const e = this.takeError();
+      upload: async (path: string, blob: Blob, options?: { upsert?: boolean }) => {
+        const e = this.uploadFailures.shift() ?? this.takeError();
         if (e) return { data: null, error: e };
         this.uploads.push([path, blob]);
+        this.uploadOptions.push(options);
         this.storageFiles.set(`${bucket}/${path}`, blob);
         return { data: { path }, error: null };
       },
@@ -372,4 +376,61 @@ test('ошибка загрузки GPX называет причину (обр�
   await expect(
     repo.addTrack(gpxFile(), { districtId: home.id, category: 'hike', name: 'Т' }),
   ).rejects.toThrow(/GPX-файл[\s\S]*row-level security/);
+});
+
+test('uploadWithRetry: обрыв сети повторяется, успех на третьей попытке', async () => {
+  const calls: string[] = [];
+  const err = await uploadWithRetry(
+    async () => {
+      calls.push('up');
+      return calls.length < 3 ? { error: { message: 'Failed to fetch' } } : { error: null };
+    },
+    3,
+    0,
+  );
+  expect(err).toBeNull();
+  expect(calls).toHaveLength(3);
+});
+
+test('uploadWithRetry: причина-не-сеть (RLS) не повторяется', async () => {
+  const calls: string[] = [];
+  const err = await uploadWithRetry(
+    async () => {
+      calls.push('up');
+      return { error: { message: 'new row violates row-level security policy' } };
+    },
+    3,
+    0,
+  );
+  expect(err?.message).toMatch(/row-level security/);
+  expect(calls).toHaveLength(1);
+});
+
+test('uploadWithRetry: все попытки пали — возвращается последняя ошибка', async () => {
+  const err = await uploadWithRetry(
+    async () => ({ error: { message: 'Failed to fetch' } }),
+    2,
+    0,
+  );
+  expect(err?.message).toBe('Failed to fetch');
+});
+
+test('addTrack переживает один обрыв сети при загрузке файла', async () => {
+  const fake = new FakeSupabase();
+  const { repo, home } = await repoWithSession(fake);
+  fake.uploadFailures = [{ message: 'Failed to fetch' }];
+  const t = await repo.addTrack(gpxFile('к.gpx'), {
+    districtId: home.id,
+    category: 'hike',
+    name: 'Т',
+  });
+  expect(t.name).toBe('Т');
+  expect(fake.uploads).toHaveLength(1);
+});
+
+test('addTrack грузит с upsert — повтор не споткнётся о «уже существует»', async () => {
+  const fake = new FakeSupabase();
+  const { repo, home } = await repoWithSession(fake);
+  await repo.addTrack(gpxFile('к.gpx'), { districtId: home.id, category: 'hike', name: 'Т' });
+  expect(fake.uploadOptions[0]?.upsert).toBe(true);
 });

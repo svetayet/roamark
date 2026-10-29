@@ -6,20 +6,23 @@ import { TrackCard } from '../components/TrackCard';
 import { Brand } from '../components/Brand';
 import { orderDistricts } from '../logic/districts';
 import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
+import { readCachedDistricts, writeCachedDistricts, readCachedTracks, writeCachedTracks } from './homeCache';
 
 /** Главная: шапка с селектом районов, кнопка «+», список треков основного экрана. */
 export function HomePage() {
   const repo = useRepo();
   const navigate = useNavigate();
-  const [districts, setDistricts] = useState<District[]>([]);
+  // Кэш рисует экран до ответа сервера; «загружаем…» остаётся только без кэша.
+  const [districts, setDistricts] = useState<District[]>(() => readCachedDistricts() ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(() => readSelectedDistrict());
   const [tracks, setTracks] = useState<Track[]>([]);
-  // Пока районы не пришли, пустой список вводит в заблуждение («здесь ничего нет»).
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readCachedDistricts() === null);
+  const [tracksLoading, setTracksLoading] = useState(true);
 
   useEffect(() => {
     repo.listDistricts().then((list) => {
       setDistricts(list);
+      writeCachedDistricts(list);
       setSelectedId((current) => {
         if (current && list.some((d) => d.id === current)) return current;
         return (list.find((d) => d.isPrimary) ?? list[0])?.id ?? null;
@@ -31,11 +34,18 @@ export function HomePage() {
   useEffect(() => {
     if (!selectedId) {
       setTracks([]);
+      setTracksLoading(false);
       return;
     }
+    const cached = readCachedTracks(selectedId);
+    setTracks(cached ?? []);
+    setTracksLoading(cached === null);
     let live = true;
     repo.listTracks(selectedId).then((list) => {
-      if (live) setTracks(list);
+      if (!live) return;
+      setTracks(list);
+      writeCachedTracks(selectedId, list);
+      setTracksLoading(false);
     });
     return () => {
       live = false;
@@ -88,7 +98,7 @@ export function HomePage() {
           </svg>
         </button>
       </header>
-      {loading ? (
+      {loading || tracksLoading ? (
         <div className="home__empty">
           <p>загружаем…</p>
         </div>
