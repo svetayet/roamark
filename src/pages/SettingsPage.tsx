@@ -10,6 +10,12 @@ const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'system', label: 'системная' },
 ];
 
+/** Текст ошибки для подсказки: доменные ошибки репозитория говорят сами, прочие — общая фраза. */
+function hintOf(e: unknown): string {
+  if (e instanceof RepositoryError) return e.message;
+  return 'Не получилось. Попробуй ещё раз.';
+}
+
 /** Настройки: тема, районы, выход. */
 export function SettingsPage() {
   const repo = useRepo();
@@ -26,8 +32,12 @@ export function SettingsPage() {
 
   const makePrimary = async (id: string) => {
     setHint(null);
-    await repo.setPrimaryDistrict(id);
-    await reload();
+    try {
+      await repo.setPrimaryDistrict(id);
+      await reload();
+    } catch (e) {
+      setHint(hintOf(e));
+    }
   };
 
   const remove = async (id: string) => {
@@ -36,15 +46,19 @@ export function SettingsPage() {
       await repo.deleteDistrict(id);
       await reload();
     } catch (e) {
-      if (e instanceof RepositoryError) setHint(e.message);
+      setHint(hintOf(e));
     }
   };
 
   const rename = async (id: string) => {
     if (!editing || editing.id !== id || !editing.draft.trim()) return;
-    await repo.renameDistrict(id, editing.draft);
-    setEditing(null);
-    await reload();
+    try {
+      await repo.renameDistrict(id, editing.draft);
+      setEditing(null);
+      await reload();
+    } catch (e) {
+      setHint(hintOf(e));
+    }
   };
 
   const logout = async () => {
@@ -125,7 +139,7 @@ export function SettingsPage() {
             </li>
           ))}
         </ul>
-        {hint && <p className="settings__hint">сначала перенесите треки: {hint}</p>}
+        {hint && <p className="settings__hint">{hint}</p>}
       </section>
 
       <button className="link link--danger settings__logout" onClick={logout}>

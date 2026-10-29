@@ -17,6 +17,7 @@ export function TrackPage() {
   const [segments, setSegments] = useState<LatLng[][]>([]);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -53,8 +54,13 @@ export function TrackPage() {
 
   const remove = async () => {
     if (!window.confirm('Удалить трек? GPX-файл тоже исчезнет.')) return;
-    await repo.deleteTrack(track.id);
-    navigate('/');
+    setDeleteError(null);
+    try {
+      await repo.deleteTrack(track.id);
+      navigate('/');
+    } catch {
+      setDeleteError('Не получилось удалить. Попробуй ещё раз.');
+    }
   };
 
   return (
@@ -93,6 +99,7 @@ export function TrackPage() {
             удалить
           </button>
         </div>
+        {deleteError && <p className="form-errors">{deleteError}</p>}
       </div>
     </div>
   );

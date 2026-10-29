@@ -39,3 +39,15 @@ test('если сессия уже есть — сразу на главную',
   renderLogin(repo);
   await waitFor(() => expect(screen.getByTestId('home-page')).toBeTruthy());
 });
+
+test('ошибка отправки письма показана, форма жива', async () => {
+  const repo = new InMemoryTrackRepository();
+  vi.spyOn(repo, 'sendMagicLink').mockRejectedValueOnce(new Error('rate limit'));
+  renderLogin(repo);
+  fireEvent.input(screen.getByLabelText('почта'), { target: { value: 'a@b.ru' } });
+  screen.getByRole('button', { name: /войти/i }).click();
+  expect(
+    await screen.findByText('Не получилось отправить письмо. Попробуй ещё раз.'),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: /войти/i })).toBeTruthy();
+});

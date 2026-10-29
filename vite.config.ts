@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  // GitHub Pages для репозитория-проекта живёт на под-пути /<repo>/ — базу задаёт CI через VITE_BASE.
+  // Репозиторий вида <user>.github.io собирается с базой '/' (CI сам подставляет).
+  base: process.env.VITE_BASE || '/',
   plugins: [
     react(),
     VitePWA({
@@ -17,7 +20,8 @@ export default defineConfig({
         background_color: '#F0F3F1',
         icons: [
           {
-            src: '/icon.svg',
+            // Относительный путь: манифест лежит в корне сайта, иконка тоже.
+            src: 'icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',

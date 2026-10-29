@@ -23,7 +23,7 @@ export function segmentsDistanceKm(segments: LatLng[][]): number {
   return total;
 }
 
-export function segmentsBounds(segments: LatLng[][]): Bounds {
+export function segmentsBounds(segments: LatLng[][]): Bounds | null {
   let minLat = Infinity;
   let minLon = Infinity;
   let maxLat = -Infinity;
@@ -36,6 +36,7 @@ export function segmentsBounds(segments: LatLng[][]): Bounds {
       if (lon > maxLon) maxLon = lon;
     }
   }
+  if (!Number.isFinite(minLat)) return null; // точек нет — границ нет
   return { minLat, minLon, maxLat, maxLon };
 }
 

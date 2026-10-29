@@ -89,3 +89,14 @@ test('«удалить» без подтверждения ничего не д�
   expect(deleteSpy).not.toHaveBeenCalled();
   confirm.mockRestore();
 });
+
+test('неудачное удаление: сообщение, остаёмся на странице трека', async () => {
+  const { repo, track } = await makeRepo();
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  vi.spyOn(repo, 'deleteTrack').mockRejectedValueOnce(new Error('offline'));
+  renderAt(repo, track.id);
+  await screen.findByText('Кольцо Падуна');
+  screen.getByRole('button', { name: /удалить/ }).click();
+  expect(await screen.findByText('Не получилось удалить. Попробуй ещё раз.')).toBeTruthy();
+  expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
+});

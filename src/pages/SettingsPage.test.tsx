@@ -80,7 +80,7 @@ test('удаление района с треками: подсказка, сп�
   await screen.findByText('Рядом', { exact: false });
   rowOf('Рядом').getByRole('button', { name: /удалить/ }).click();
   await waitFor(() =>
-    expect(screen.getByText(/сначала перенесите треки/i)).toBeTruthy(),
+    expect(screen.getByText(/в районе есть треки/i)).toBeTruthy(),
   );
   expect(await repo.listDistricts()).toHaveLength(2);
   rowOf('Далеко').getByRole('button', { name: /удалить/ }).click();
@@ -114,4 +114,26 @@ test('«выйти» зовёт signOut', async () => {
   await screen.findByText('Рядом', { exact: false });
   screen.getByRole('button', { name: /выйти/ }).click();
   await waitFor(() => expect(spy).toHaveBeenCalled());
+});
+
+test('ошибка «сделать основным» показана подсказкой', async () => {
+  const { repo } = await setup();
+  vi.spyOn(repo, 'setPrimaryDistrict').mockRejectedValueOnce(new Error('offline'));
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  rowOf('Далеко').getByRole('button', { name: /сделать основным/ }).click();
+  expect(await screen.findByText('Не получилось. Попробуй ещё раз.')).toBeTruthy();
+});
+
+test('ошибка переименования показана подсказкой', async () => {
+  const { repo } = await setup();
+  vi.spyOn(repo, 'renameDistrict').mockRejectedValueOnce(new Error('offline'));
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  const row = rowOf('Далеко');
+  row.getByRole('button', { name: /переименовать/ }).click();
+  const input = await waitFor(() => row.getByLabelText('имя района') as HTMLInputElement);
+  fireEvent.input(input, { target: { value: 'Совсем далеко' } });
+  row.getByRole('button', { name: /готово/ }).click();
+  expect(await screen.findByText('Не получилось. Попробуй ещё раз.')).toBeTruthy();
 });

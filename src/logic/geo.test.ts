@@ -37,6 +37,11 @@ test('bounds охватывает все точки всех сегментов'
   });
 });
 
+test('bounds без точек — null, а не Infinity (карта не должна звать fitBounds впустую)', () => {
+  expect(segmentsBounds([])).toBeNull();
+  expect(segmentsBounds([[], []])).toBeNull();
+});
+
 test('decimate до 5 сохраняет длину и оба конца', () => {
   const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const out = decimate(items, 5);

@@ -9,6 +9,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Уже вошли (ссылка из письма) — на главную.
   useEffect(() => {
@@ -21,9 +22,12 @@ export function LoginPage() {
     const trimmed = email.trim();
     if (!trimmed || busy) return;
     setBusy(true);
+    setError(null);
     try {
       await repo.sendMagicLink(trimmed);
       setSent(true);
+    } catch {
+      setError('Не получилось отправить письмо. Попробуй ещё раз.');
     } finally {
       setBusy(false);
     }
@@ -55,6 +59,7 @@ export function LoginPage() {
           <button className="btn btn--primary" type="submit" disabled={!email.trim() || busy}>
             войти
           </button>
+          {error && <p className="login__error">{error}</p>}
         </form>
       )}
     </div>

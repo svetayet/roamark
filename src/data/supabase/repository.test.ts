@@ -102,7 +102,7 @@ class FakeSupabase {
   ]);
   storageFiles = new Map<string, Blob>();
   otpCalls: { email: string }[] = [];
-  signedUrlCalls: [string, number][] = [];
+  signedUrlCalls: [string, number, { download?: string } | undefined][] = [];
   uploads: [string, Blob][] = [];
   removedFiles: string[] = [];
   failWith: { message: string; code?: string } | null = null;
@@ -119,7 +119,7 @@ class FakeSupabase {
   }
 
   auth = {
-    signInWithOtp: async (args: { email: string }) => {
+    signInWithOtp: async (args: { email: string; options?: { emailRedirectTo?: string } }) => {
       this.otpCalls.push(args);
       this.session = { user: { id: 'u1', email: args.email } };
       this.fire();
@@ -152,9 +152,17 @@ class FakeSupabase {
         this.storageFiles.set(`${bucket}/${path}`, blob);
         return { data: { path }, error: null };
       },
-      createSignedUrl: async (path: string, secs: number) => {
-        this.signedUrlCalls.push([path, secs]);
-        return { data: { signedUrl: `https://signed/${bucket}/${path}?t=${secs}` }, error: null };
+      createSignedUrl: async (
+        path: string,
+        secs: number,
+        options?: { download?: string },
+      ) => {
+        this.signedUrlCalls.push([path, secs, options]);
+        const dl = options?.download ? `&download=${encodeURIComponent(options.download)}` : '';
+        return {
+          data: { signedUrl: `https://signed/${bucket}/${path}?t=${secs}${dl}` },
+          error: null,
+        };
       },
       download: async (path: string) => {
         const blob = this.storageFiles.get(`${bucket}/${path}`);
@@ -206,13 +214,15 @@ test('encodePreview/decodePreview ходят туда-обратно', () => {
   expect(decodePreview(encoded)).toEqual(segments);
 });
 
-test('sendMagicLink → signInWithOtp({email}); onAuth срабатывает', async () => {
+test('sendMagicLink → signInWithOtp c emailRedirectTo на текущий адрес', async () => {
   const fake = new FakeSupabase();
   const repo = createSupabaseRepository(fake);
   const fired: string[] = [];
   repo.onAuth(() => fired.push('auth'));
   await repo.sendMagicLink('she@roamark.ru');
-  expect(fake.otpCalls).toEqual([{ email: 'she@roamark.ru' }]);
+  expect(fake.otpCalls).toEqual([
+    { email: 'she@roamark.ru', options: { emailRedirectTo: window.location.origin } },
+  ]);
   expect(fired.length).toBeGreaterThan(0);
   expect((await repo.getSession())?.email).toBe('she@roamark.ru');
 });
@@ -275,17 +285,22 @@ test('listTracks: snake_case → camelCase Track', async () => {
   expect(typeof t.createdAt).toBe('string');
 });
 
-test('getDownloadUrl → createSignedUrl(path, 3600); getGpxText байт-в-байт', async () => {
+test('getDownloadUrl → createSignedUrl(path, 3600, {download: оригинальное имя}); getGpxText байт-в-байт', async () => {
   const fake = new FakeSupabase();
   const { repo, home } = await repoWithSession(fake);
-  const track = await repo.addTrack(gpxFile('b.gpx'), {
+  const track = await repo.addTrack(gpxFile('б.gpx'), {
     districtId: home.id,
     category: 'ski',
     name: 'Лыжня',
   });
   const url = await repo.getDownloadUrl(track.id);
-  expect(fake.signedUrlCalls).toEqual([[track.storagePath, 3600]]);
+  // download-атрибут ссылки на кросс-доменный URL браузер игнорирует:
+  // имя файла должен задать сам Supabase (Content-Disposition).
+  expect(fake.signedUrlCalls).toEqual([
+    [track.storagePath, 3600, { download: 'б.gpx' }],
+  ]);
   expect(url).toContain(track.storagePath);
+  expect(url).toContain('download');
   expect(await repo.getGpxText(track.id)).toBe(GPX);
 });
 

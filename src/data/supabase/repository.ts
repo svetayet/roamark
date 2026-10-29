@@ -37,7 +37,10 @@ interface Builder extends PromiseLike<{ data: unknown; error: DbError | null }> 
 /** Минимальная структурная маска клиента: реальный supabase-js ей удовлетворяет. */
 export interface SupabaseLike {
   auth: {
-    signInWithOtp(args: { email: string }): PromiseLike<{ error: DbError | null }>;
+    signInWithOtp(args: {
+      email: string;
+      options?: { emailRedirectTo?: string };
+    }): PromiseLike<{ error: DbError | null }>;
     getSession(): PromiseLike<{
       data: { session: { user: { id: string; email: string } } | null } | null;
       error: DbError | null;
@@ -54,6 +57,7 @@ export interface SupabaseLike {
       createSignedUrl(
         path: string,
         seconds: number,
+        options?: { download?: string },
       ): PromiseLike<{ data: { signedUrl: string } | null; error: DbError | null }>;
       download(path: string): PromiseLike<{ data: Blob | null; error: DbError | null }>;
       remove(paths: string[]): PromiseLike<{ error: DbError | null }>;
@@ -77,7 +81,11 @@ class SupabaseTrackRepository implements TrackRepository {
   }
 
   async sendMagicLink(email: string): Promise<void> {
-    const { error } = await this.client.auth.signInWithOtp({ email });
+    // Ссылка из письма должна возвращать в приложение, а не на supabase.co.
+    const { error } = await this.client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
     throwIf(error);
   }
 
@@ -228,9 +236,13 @@ class SupabaseTrackRepository implements TrackRepository {
   async getDownloadUrl(id: string): Promise<string> {
     await this.requireSession();
     const row = await this.trackRow(id);
+    // download: файл сохраняется под оригинальным именем — атрибут ссылки
+    // на кросс-доменный URL браузеры игнорируют.
     const { data, error } = await this.client.storage
       .from('gpx')
-      .createSignedUrl(String(row.storage_path), 3600);
+      .createSignedUrl(String(row.storage_path), 3600, {
+        download: String(row.original_filename),
+      });
     throwIf(error);
     if (!data) throw new RepositoryError('Не получилось получить ссылку на файл.');
     return data.signedUrl;

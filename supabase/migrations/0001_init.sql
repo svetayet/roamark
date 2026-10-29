@@ -67,6 +67,18 @@ create policy owner_all_tracks on tracks for all
 -- Приватный бакет GPX: скачивание только по подписанной ссылке владельца.
 insert into storage.buckets (id, name, public) values ('gpx','gpx', false)
   on conflict (id) do nothing;
-create policy owner_gpx_objects on storage.objects for all
-  using (bucket_id = 'gpx' and owner = auth.uid())
-  with check (bucket_id = 'gpx' and owner = auth.uid());
+-- В свежих проектах колонка владельца объекта называется owner_id;
+-- в старых — owner (text). Пробуем современную, при её отсутствии — прежнюю.
+do $$
+begin
+  begin
+    create policy owner_gpx_objects on storage.objects for all
+      using (bucket_id = 'gpx' and owner_id = auth.uid())
+      with check (bucket_id = 'gpx' and owner_id = auth.uid());
+  exception
+    when undefined_column then
+      create policy owner_gpx_objects on storage.objects for all
+        using (bucket_id = 'gpx' and owner = auth.uid())
+        with check (bucket_id = 'gpx' and owner = auth.uid());
+  end;
+end $$;

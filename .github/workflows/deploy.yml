@@ -28,7 +28,15 @@ jobs:
         run: |
           echo "VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.production
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.production
+      - name: Compute base path
+        id: base
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          if [[ "$REPO_NAME" == *.github.io ]]; then BASE="/"; else BASE="/$REPO_NAME/"; fi
+          echo "path=$BASE" >> "$GITHUB_OUTPUT"
       - run: npm run build
+        env:
+          VITE_BASE: ${{ steps.base.outputs.path }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -458,3 +458,12 @@ button {
   color: var(--primary);
   font-weight: 600;
 }
+
+.login__error {
+  margin: 0;
+  color: #c0392b;
+}
+
+[data-theme='dark'] .login__error {
+  color: #e57368;
+}
