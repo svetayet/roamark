@@ -102,7 +102,7 @@ class FakeSupabase {
     ['tracks', []],
   ]);
   storageFiles = new Map<string, Blob>();
-  otpCalls: { email: string }[] = [];
+  otpCalls: { email: string; options?: { emailRedirectTo?: string } }[] = [];
   signedUrlCalls: [string, number, { download?: string } | undefined][] = [];
   uploads: [string, Blob][] = [];
   removedFiles: string[] = [];
