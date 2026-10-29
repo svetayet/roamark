@@ -14,8 +14,8 @@ import { idbDelete, idbGet, idbGetAll, idbPut, openDb } from './idb';
 /**
  * Локальная реализация TrackRepository: все данные и GPX-файлы живут
  * в браузере (IndexedDB), чтение мгновенное и работает без сети.
- * Первый запуск на пустой базе создаёт основной район «Рядом»,
- * как ensureBootstrap в демо-репозитории.
+ * Первый запуск на пустой базе создаёт основной район «Рядом» —
+ * того же требует InMemoryTrackRepository в тестах.
  */
 
 type DistrictRecord = { id: string; kind: 'district' } & District;
@@ -34,19 +34,6 @@ export class LocalTrackRepository implements TrackRepository {
       await this.ensureDefaultDistrict(db);
       return db;
     });
-  }
-
-  // Auth в локальном режиме не нужен; методы исчезнут вместе с интерфейсом (этап 1).
-  async getSession(): Promise<{ email: string } | null> {
-    return { email: 'local' };
-  }
-
-  async sendMagicLink(): Promise<void> {}
-
-  async signOut(): Promise<void> {}
-
-  onAuth(): () => void {
-    return () => {};
   }
 
   async listDistricts(): Promise<District[]> {

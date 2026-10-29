@@ -11,22 +11,16 @@ const GPX_3_POINTS = `<?xml version="1.0"?><gpx version="1.1">
 const gpxFile = (name = 'Кольцо Падуна.gpx') =>
   new File([GPX_3_POINTS], name, { type: 'application/gpx+xml' });
 
-test('новый репозиторий без сессии; sendMagicLink создаёт сессию и зовёт onAuth', async () => {
+test('новый репозиторий сразу с основным районом «Рядом»', async () => {
   const repo = new InMemoryTrackRepository();
-  expect(await repo.getSession()).toBeNull();
-  const fired: number[] = [];
-  repo.onAuth(() => fired.push(1));
-  await repo.sendMagicLink('she@roamark.ru');
-  const session = await repo.getSession();
-  expect(session?.email).toBe('she@roamark.ru');
-  expect(fired.length).toBeGreaterThan(0);
-  await repo.signOut();
-  expect(await repo.getSession()).toBeNull();
+  const districts = await repo.listDistricts();
+  expect(districts).toHaveLength(1);
+  expect(districts[0].name).toBe('Рядом');
+  expect(districts[0].isPrimary).toBe(true);
 });
 
 test('setPrimaryDistrict оставляет ровно один основной при любой последовательности', async () => {
   const repo = new InMemoryTrackRepository();
-  await repo.sendMagicLink('she@roamark.ru');
   const d1 = await repo.createDistrict('Рядом');
   const d2 = await repo.createDistrict('Хакасия');
   await repo.setPrimaryDistrict(d2.id);
@@ -42,7 +36,6 @@ test('setPrimaryDistrict оставляет ровно один основной
 
 test('deleteDistrict пустого ок; с треками — RepositoryError', async () => {
   const repo = new InMemoryTrackRepository();
-  await repo.sendMagicLink('she@roamark.ru');
   const home = (await repo.listDistricts()).find(() => true)!;
   const empty = await repo.createDistrict('Пустой');
   await expect(repo.deleteDistrict(empty.id)).resolves.toBeUndefined();
@@ -58,7 +51,6 @@ test('deleteDistrict пустого ок; с треками — RepositoryError'
 
 test('addTrack парсит файл: километры, превью ≤400, uuid-путь, имя файла; новые сверху', async () => {
   const repo = new InMemoryTrackRepository();
-  await repo.sendMagicLink('she@roamark.ru');
   const home = (await repo.listDistricts()).find(() => true)!;
   const first = await repo.addTrack(gpxFile('первый.gpx'), {
     districtId: home.id,
@@ -83,7 +75,6 @@ test('addTrack парсит файл: километры, превью ≤400, u
 
 test('updateTrackMeta меняет только метаданные', async () => {
   const repo = new InMemoryTrackRepository();
-  await repo.sendMagicLink('she@roamark.ru');
   const home = (await repo.listDistricts()).find(() => true)!;
   const track = await repo.addTrack(gpxFile(), {
     districtId: home.id,
@@ -105,7 +96,6 @@ test('updateTrackMeta меняет только метаданные', async () 
 
 test('getGpxText байт-в-байт; getDownloadUrl отдаёт исходный текст; getTrack несуществующего — ошибка', async () => {
   const repo = new InMemoryTrackRepository();
-  await repo.sendMagicLink('she@roammark.ru');
   const home = (await repo.listDistricts()).find(() => true)!;
   const track = await repo.addTrack(gpxFile('имя с пробелами.gpx'), {
     districtId: home.id,

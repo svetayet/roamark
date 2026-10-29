@@ -30,15 +30,10 @@ export const PREVIEW_MAX_POINTS = 400;
 
 /**
  * Единственный способ приложения работать с данными.
- * Реализации: InMemoryTrackRepository (демо/тесты), Supabase (прод) — src/data/supabase/.
+ * Реализации: LocalTrackRepository (прод, IndexedDB — src/data/local/),
+ * InMemoryTrackRepository (тесты).
  */
 export interface TrackRepository {
-  getSession(): Promise<{ email: string } | null>;
-  sendMagicLink(email: string): Promise<void>;
-  signOut(): Promise<void>;
-  /** Подписка на смену сессии; возвращает отписку. */
-  onAuth(cb: () => void): () => void;
-
   listDistricts(): Promise<District[]>;
   createDistrict(name: string): Promise<District>;
   renameDistrict(id: string, name: string): Promise<void>;

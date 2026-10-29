@@ -1,22 +1,15 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { InMemoryTrackRepository } from './memory';
-import { createSupabaseRepository } from './supabase/repository';
+import { LocalTrackRepository } from './local/repository';
 import type { TrackRepository } from './repository';
 
-/**
- * Выбор реализации хранилища: настроен Supabase — она,
- * нет — демо-репозиторий в памяти. Ключи читаются только здесь и в client.ts.
- */
+/** Все данные — локально в браузере (IndexedDB). Никакого входа. */
 function createDefaultRepo(): TrackRepository {
-  if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
-    return createSupabaseRepository();
-  }
-  return new InMemoryTrackRepository({ demo: true });
+  return new LocalTrackRepository();
 }
 
 const RepoContext = createContext<TrackRepository | null>(null);
 
-/** repo — точечная подмена (тесты); без неё — выбор по окружению. */
+/** repo — точечная подмена (тесты); без неё — локальное хранилище. */
 export function RepoProvider({ children, repo }: { children: ReactNode; repo?: TrackRepository }) {
   return <RepoContext.Provider value={repo ?? defaultRepo}>{children}</RepoContext.Provider>;
 }

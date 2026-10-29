@@ -15,7 +15,7 @@ const GPX = `<?xml version="1.0"?><gpx version="1.1">
 
 /** Трек с фикстурным километражем; repo (если передан) содержит этот трек — для ссылки скачивания. */
 async function makeTrack(): Promise<{ track: Track; repo: InMemoryTrackRepository }> {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];
   const track = await repo.addTrack(
     new File([GPX], 'koltso.gpx', { type: 'application/gpx+xml' }),

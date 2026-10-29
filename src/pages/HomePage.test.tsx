@@ -19,7 +19,7 @@ const GPX = `<?xml version="1.0"?><gpx version="1.1">
 </trkseg></trk></gpx>`;
 
 async function repoWithTrack() {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];
   await repo.addTrack(new File([GPX], 'koltso.gpx', { type: 'application/gpx+xml' }), {
     districtId: home.id,

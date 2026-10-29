@@ -15,7 +15,7 @@ const GPX = `<?xml version="1.0"?><gpx version="1.1">
 </trkseg></trk></gpx>`;
 
 async function setup() {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];
   await repo.addTrack(new File([GPX], 't.gpx', { type: 'application/gpx+xml' }), {
     districtId: home.id,
@@ -34,7 +34,6 @@ function renderSettings(repo: InstanceType<typeof InMemoryTrackRepository>) {
           <Routes>
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/" element={<div data-testid="home-page" />} />
-            <Route path="/login" element={<div data-testid="login-page" />} />
           </Routes>
         </MemoryRouter>
       </RepoProvider>
@@ -106,15 +105,6 @@ test('переименование: инлайн-input меняет имя', asy
     const list = await repo.listDistricts();
     expect(list.find((d) => d.id === far.id)?.name).toBe('Совсем далеко');
   });
-});
-
-test('«выйти» зовёт signOut', async () => {
-  const { repo } = await setup();
-  const spy = vi.spyOn(repo, 'signOut');
-  renderSettings(repo);
-  await screen.findByText('Рядом', { exact: false });
-  screen.getByRole('button', { name: /выйти/ }).click();
-  await waitFor(() => expect(spy).toHaveBeenCalled());
 });
 
 test('ошибка «сделать основным» показана подсказкой', async () => {

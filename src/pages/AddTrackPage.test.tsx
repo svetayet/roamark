@@ -24,7 +24,7 @@ const gpxFile = (name = 'Кольцо Падуна.gpx') =>
   new File([GPX], name, { type: 'application/gpx+xml' });
 
 async function repoWithTrack() {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];
   const track = await repo.addTrack(gpxFile(), {
     districtId: home.id,
@@ -56,7 +56,7 @@ function chooseFile(file: File) {
 }
 
 test('валидный GPX: «✓ км», название автозаполнено из имени файла', async () => {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   renderAt(repo, '/add');
   chooseFile(gpxFile());
   expect(await screen.findByText(`✓ ${EXPECTED_KM}`)).toBeTruthy();
@@ -64,7 +64,7 @@ test('валидный GPX: «✓ км», название автозаполн�
 });
 
 test('выбор файла — стилизованная зона, нативный input спрятан', async () => {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   renderAt(repo, '/add');
   expect(screen.getByText('выбрать GPX-файл')).toBeTruthy();
   const input = screen.getByLabelText('файл GPX') as HTMLInputElement;
@@ -72,7 +72,7 @@ test('выбор файла — стилизованная зона, натив�
 });
 
 test('не-GPX файл: ошибка, «сохранить» недоступна', async () => {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   renderAt(repo, '/add');
   chooseFile(new File(['просто текст, не трек'], 'заметка.txt', { type: 'text/plain' }));
   expect(
@@ -82,7 +82,7 @@ test('не-GPX файл: ошибка, «сохранить» недоступн
 });
 
 test('submit: трек в репозитории, редирект на страницу трека', async () => {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];
   renderAt(repo, '/add');
   chooseFile(gpxFile());
@@ -109,7 +109,7 @@ test('edit: поля предзаполнены, файла нет, дистан
 });
 
 test('район по умолчанию — текущий на главной (sessionStorage), а не основной', async () => {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const far = await repo.createDistrict('Далеко');
   sessionStorage.setItem('roamark.district', far.id);
   try {
@@ -122,7 +122,7 @@ test('район по умолчанию — текущий на главной 
 });
 
 test('удалённый район в sessionStorage: по умолчанию — основной', async () => {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   sessionStorage.setItem('roamark.district', 'несуществующий-id');
   try {
     renderAt(repo, '/add');

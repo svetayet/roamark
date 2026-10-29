@@ -16,7 +16,7 @@ const GPX = `<?xml version="1.0"?><gpx version="1.1">
 </trkseg></trk></gpx>`;
 
 async function makeRepo() {
-  const repo = new InMemoryTrackRepository({ demo: true });
+  const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];
   const track = await repo.addTrack(
     new File([GPX], 'кольцо падуна 😎.gpx', { type: 'application/gpx+xml' }),

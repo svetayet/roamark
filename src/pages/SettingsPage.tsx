@@ -17,7 +17,7 @@ function hintOf(e: unknown): string {
   return 'Не получилось. Попробуй ещё раз.';
 }
 
-/** Настройки: тема, районы, выход. */
+/** Настройки: тема и районы. */
 export function SettingsPage() {
   const repo = useRepo();
   const { pref, setPref } = useTheme();
@@ -26,8 +26,7 @@ export function SettingsPage() {
   const [hint, setHint] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
   const [newName, setNewName] = useState('');
-  // Бесплатный Supabase отвечает медленно: без признака занятости кнопки
-  // выглядят мёртвыми, а повторные клики плодят дубли.
+  // Признак занятости не даёт повторным кликам задвоить действия.
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -92,11 +91,6 @@ export function SettingsPage() {
       setBusy(false);
       setCreating(false);
     }
-  };
-
-  const logout = async () => {
-    await repo.signOut();
-    navigate('/login');
   };
 
   return (
@@ -197,10 +191,6 @@ export function SettingsPage() {
         </div>
         {hint && <p className="settings__hint">{hint}</p>}
       </section>
-
-      <button className="link link--danger settings__logout" onClick={logout}>
-        выйти
-      </button>
     </div>
   );
 }

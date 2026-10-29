@@ -1,4 +1,3 @@
-import { vi } from 'vitest';
 import { createSupabaseRepository, uploadWithRetry } from './repository';
 import { RepositoryError } from '../repository';
 import { encodePreview, decodePreview } from '../preview';
@@ -201,7 +200,7 @@ const gpxFile = (name = 'кольцо 😎.gpx') =>
 
 async function repoWithSession(fake: FakeSupabase) {
   const repo = createSupabaseRepository(fake);
-  await repo.sendMagicLink('she@roamark.ru');
+  await fake.auth.signInWithOtp({ email: 'she@roamark.ru' });
   const home = (await repo.listDistricts())[0];
   return { repo, home };
 }
@@ -217,35 +216,6 @@ test('encodePreview/decodePreview ходят туда-обратно', () => {
   const encoded = encodePreview(segments);
   expect(encoded).toBe('51.8123,104.9456;51.9,104.8|52,105');
   expect(decodePreview(encoded)).toEqual(segments);
-});
-
-test('sendMagicLink → signInWithOtp c emailRedirectTo на текущий адрес', async () => {
-  const fake = new FakeSupabase();
-  const repo = createSupabaseRepository(fake);
-  const fired: string[] = [];
-  repo.onAuth(() => fired.push('auth'));
-  await repo.sendMagicLink('she@roamark.ru');
-  expect(fake.otpCalls).toEqual([
-    // База по умолчанию '/' — адрес приложения в корне.
-    { email: 'she@roamark.ru', options: { emailRedirectTo: `${window.location.origin}/` } },
-  ]);
-  expect(fired.length).toBeGreaterThan(0);
-  expect((await repo.getSession())?.email).toBe('she@roamark.ru');
-});
-
-test('sendMagicLink → emailRedirectTo включает базовый путь (GitHub Pages)', async () => {
-  // На Pages приложение живёт в подпути: origin без '/roamark/' ведёт на пустой корень домена.
-  vi.stubEnv('BASE_URL', '/roamark/');
-  try {
-    const fake = new FakeSupabase();
-    const repo = createSupabaseRepository(fake);
-    await repo.sendMagicLink('she@roamark.ru');
-    expect(fake.otpCalls[0]?.options?.emailRedirectTo).toBe(
-      `${window.location.origin}/roamark/`,
-    );
-  } finally {
-    vi.unstubAllEnvs();
-  }
 });
 
 test('первый listDistricts пуст → создаётся «Рядом» основным', async () => {
