@@ -82,9 +82,13 @@ class SupabaseTrackRepository implements TrackRepository {
 
   async sendMagicLink(email: string): Promise<void> {
     // Ссылка из письма должна возвращать в приложение, а не на supabase.co.
+    // BASE_URL — подпуть приложения ('/roamark/' на GitHub Pages, '/' локально),
+    // без него ссылка ведёт на пустой корень домена.
     const { error } = await this.client.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: {
+        emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
+      },
     });
     throwIf(error);
   }

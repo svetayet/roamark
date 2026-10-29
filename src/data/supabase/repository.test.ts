@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { createSupabaseRepository } from './repository';
 import { RepositoryError } from '../repository';
 import { encodePreview, decodePreview } from '../preview';
@@ -221,10 +222,26 @@ test('sendMagicLink → signInWithOtp c emailRedirectTo на текущий ад
   repo.onAuth(() => fired.push('auth'));
   await repo.sendMagicLink('she@roamark.ru');
   expect(fake.otpCalls).toEqual([
-    { email: 'she@roamark.ru', options: { emailRedirectTo: window.location.origin } },
+    // База по умолчанию '/' — адрес приложения в корне.
+    { email: 'she@roamark.ru', options: { emailRedirectTo: `${window.location.origin}/` } },
   ]);
   expect(fired.length).toBeGreaterThan(0);
   expect((await repo.getSession())?.email).toBe('she@roamark.ru');
+});
+
+test('sendMagicLink → emailRedirectTo включает базовый путь (GitHub Pages)', async () => {
+  // На Pages приложение живёт в подпути: origin без '/roamark/' ведёт на пустой корень домена.
+  vi.stubEnv('BASE_URL', '/roamark/');
+  try {
+    const fake = new FakeSupabase();
+    const repo = createSupabaseRepository(fake);
+    await repo.sendMagicLink('she@roamark.ru');
+    expect(fake.otpCalls[0]?.options?.emailRedirectTo).toBe(
+      `${window.location.origin}/roamark/`,
+    );
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 
 test('первый listDistricts пуст → создаётся «Рядом» основным', async () => {
