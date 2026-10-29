@@ -84,14 +84,49 @@ export function SpikePage() {
       setSteps((prev) => prev.map((s, i) => (i === 3 ? { ...s, status: 'ok' } : s)));
       cursor = 4;
 
-      // 5. Скачиваем тем же браузером и сверяем байт-в-байт. Без токена
-      //    downloader отвечает 403 (проверено по логам браузера), поэтому
-      //    Authorization едет и сюда.
-      res = await fetch(downloadHref, { headers: auth });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = new TextDecoder().decode(await res.arrayBuffer());
+      // 5. Скачиваем тем же браузером и сверяем байт-в-байт. Свежевыписанная
+      //    ссылка первые секунды отдаёт ошибку без CORS-заголовка (по логам
+      //    браузера это 403 или «Failed to fetch»), а потом «дозревает» —
+      //    та же ссылка качается свободно. Пробуем несколько раз с паузой.
+      let text: string | null = null;
+      let lastReason = '';
+      let attemptCount = 0;
+      for (let attempt = 1; attempt <= 6; attempt++) {
+        attemptCount = attempt;
+        try {
+          res = await fetch(downloadHref);
+          if (res.ok) {
+            text = new TextDecoder().decode(await res.arrayBuffer());
+            break;
+          }
+          lastReason = `HTTP ${res.status}`;
+        } catch (e) {
+          lastReason = e instanceof Error ? e.message : String(e);
+        }
+        if (attempt < 6) {
+          setSteps((prev) =>
+            prev.map((s, i) =>
+              i === 4
+                ? { ...s, note: `попытка ${attempt} не вышла (${lastReason}), ждём 5 с…` }
+                : s,
+            ),
+          );
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+      if (text === null) throw new Error(lastReason || 'скачать не удалось');
       if (text !== PAYLOAD) throw new Error('скачанное отличается от залитого');
-      setSteps((prev) => prev.map((s, i) => (i === 4 ? { ...s, status: 'ok' } : s)));
+      setSteps((prev) =>
+        prev.map((s, i) =>
+          i === 4
+            ? {
+                ...s,
+                status: 'ok',
+                ...(attemptCount > 1 ? { note: `получилось с попытки ${attemptCount}` } : {}),
+              }
+            : s,
+        ),
+      );
       setVerdict('✓ Яндекс подходит для синхронизации');
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
