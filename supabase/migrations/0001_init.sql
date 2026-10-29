@@ -1,10 +1,14 @@
 -- roaMark: начальная схема Supabase.
 -- Применяется целиком в SQL Editor (docs/setup.md, Task 13).
 -- Модель данных: у владелицы районы, в районах треки, GPX-файлы в приватном бакете gpx.
+-- Скрипт перезапускаемый: существующее не трогает, недостающее добавляет,
+-- так что после неудачного прогона его можно просто запустить ещё раз.
 
-create type category as enum ('hike','bike','run','ski');
+do $$ begin
+  create type category as enum ('hike','bike','run','ski');
+exception when duplicate_object then null; end $$;
 
-create table districts (
+create table if not exists districts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null check (length(trim(name)) between 1 and 100),
@@ -12,7 +16,7 @@ create table districts (
   created_at timestamptz not null default now()
 );
 
-create table tracks (
+create table if not exists tracks (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   district_id uuid not null references districts(id) on delete restrict,
@@ -32,7 +36,7 @@ create table tracks (
 
 -- Ровно один основной район: при установке флага новому району
 -- он снимается у прежнего (приложение делает одиночный UPDATE).
-create function assert_single_primary() returns trigger as $$
+create or replace function assert_single_primary() returns trigger as $$
 begin
   if new.is_primary then
     update districts d
@@ -41,44 +45,50 @@ begin
   end if;
   return new;
 end $$ language plpgsql security definer set search_path = public;
+drop trigger if exists trg_single_primary on districts;
 create trigger trg_single_primary before insert or update on districts
   for each row execute function assert_single_primary();
 
 -- Регистрация закрыта: первый зарегистрировавшийся = владелец,
 -- повторные входы по magic link создают новых пользователей и отклоняются.
-create function reject_second_user() returns trigger as $$
+create or replace function reject_second_user() returns trigger as $$
 begin
   if (select count(*) from auth.users) >= 1 then
     raise exception 'Регистрация закрыта: у приложения уже есть владелец';
   end if;
   return new;
 end $$ language plpgsql security definer set search_path = public, auth;
+drop trigger if exists trg_one_owner on auth.users;
 create trigger trg_one_owner before insert on auth.users
   for each row execute function reject_second_user();
 
 -- Каждый видит и меняет только своё.
 alter table districts enable row level security;
 alter table tracks enable row level security;
+drop policy if exists owner_all_districts on districts;
 create policy owner_all_districts on districts for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists owner_all_tracks on tracks;
 create policy owner_all_tracks on tracks for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Приватный бакет GPX: скачивание только по подписанной ссылке владельца.
 insert into storage.buckets (id, name, public) values ('gpx','gpx', false)
   on conflict (id) do nothing;
--- В свежих проектах колонка владельца объекта называется owner_id;
--- в старых — owner (text). Пробуем современную, при её отсутствии — прежнюю.
+-- Колонка владельца объекта в storage.objects в разных версиях Supabase
+-- называется owner_id (uuid или text) или owner (text). Сравниваем через ::text —
+-- приведение работает при любом типе; если owner_id нет вовсе — откат на owner.
+drop policy if exists owner_gpx_objects on storage.objects;
 do $$
 begin
   begin
     create policy owner_gpx_objects on storage.objects for all
-      using (bucket_id = 'gpx' and owner_id = auth.uid())
-      with check (bucket_id = 'gpx' and owner_id = auth.uid());
+      using (bucket_id = 'gpx' and owner_id::text = auth.uid()::text)
+      with check (bucket_id = 'gpx' and owner_id::text = auth.uid()::text);
   exception
     when undefined_column then
       create policy owner_gpx_objects on storage.objects for all
-        using (bucket_id = 'gpx' and owner = auth.uid())
-        with check (bucket_id = 'gpx' and owner = auth.uid());
+        using (bucket_id = 'gpx' and owner = auth.uid()::text)
+        with check (bucket_id = 'gpx' and owner = auth.uid()::text);
   end;
 end $$;
