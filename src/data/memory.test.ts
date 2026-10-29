@@ -109,3 +109,17 @@ test('getGpxText байт-в-байт; getDownloadUrl отдаёт исходн�
   expect(decoded).toBe(GPX_3_POINTS);
   await expect(repo.getTrack('нет-такого')).rejects.toBeInstanceOf(RepositoryError);
 });
+
+test('битый GPX — RepositoryError с человеческим сообщением (паритет с локальным)', async () => {
+  const repo = new InMemoryTrackRepository();
+  const home = (await repo.listDistricts())[0];
+  const err: unknown = await repo
+    .addTrack(new File(['совсем не xml'], 'x.gpx', { type: 'application/gpx+xml' }), {
+      districtId: home.id,
+      category: 'hike',
+      name: 'Битый',
+    })
+    .catch((e) => e);
+  expect(err).toBeInstanceOf(RepositoryError);
+  expect(err instanceof Error && err.message).toContain('Не удалось прочитать файл');
+});

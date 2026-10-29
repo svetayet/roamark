@@ -1,5 +1,6 @@
 import { deleteDb } from './idb';
 import { LocalTrackRepository } from './repository';
+import { RepositoryError } from '../repository';
 
 const GPX_RU = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1">
 <trk><name>Кольцо Падуна</name><trkseg>
@@ -107,16 +108,20 @@ test('переживает переоткрытие: второй репозит
   expect(await reopened.getGpxText(track.id)).toBe(GPX_RU);
 });
 
-test('битый GPX — человеческая ошибка', async () => {
+test('битый GPX — RepositoryError с человеческим сообщением', async () => {
   const { repo } = await freshRepo();
   const home = (await repo.listDistricts())[0];
-  await expect(
-    repo.addTrack(new File(['совсем не xml'], 'x.gpx', { type: 'application/gpx+xml' }), {
+  const err: unknown = await repo
+    .addTrack(new File(['совсем не xml'], 'x.gpx', { type: 'application/gpx+xml' }), {
       districtId: home.id,
       category: 'hike',
       name: 'Битый',
-    }),
-  ).rejects.toThrow('Не удалось прочитать файл');
+    })
+    .catch((e) => e);
+  // Тип важен не меньше текста: внешние обработчики показывают сообщение
+  // только у RepositoryError.
+  expect(err).toBeInstanceOf(RepositoryError);
+  expect(err instanceof Error && err.message).toContain('Не удалось прочитать файл');
 });
 
 test('updateTrackMeta меняет мета, deleteTrack убирает трек', async () => {

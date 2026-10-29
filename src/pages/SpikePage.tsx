@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { takeCapturedToken } from './spikeToken';
 
 /**
  * Временная spike-страница (этап 1): проверяет, отдаёт ли Яндекс.Диск
@@ -18,7 +19,8 @@ type Status = 'pending' | 'ok' | 'fail' | 'skip';
 
 export function SpikePage() {
   const navigate = useNavigate();
-  const [token, setToken] = useState('');
+  // Если пришли с согласия Яндекса — токен уже перехвачен из адреса.
+  const [token, setToken] = useState(() => takeCapturedToken() ?? '');
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<{ name: string; status: Status; note?: string }[]>([]);
   const [verdict, setVerdict] = useState<string | null>(null);

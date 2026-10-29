@@ -10,6 +10,15 @@ import { parseGpxSegments } from '../logic/gpx';
 import { segmentsBounds, segmentsDistanceKm } from '../logic/geo';
 import { buildPreview } from './preview';
 
+/** Ошибка парсера — тоже RepositoryError (паритет с локальным репозиторием). */
+function parseOrRepositoryError(gpxText: string) {
+  try {
+    return parseGpxSegments(gpxText);
+  } catch (e) {
+    throw new RepositoryError(e instanceof Error ? e.message : 'Не удалось прочитать файл.');
+  }
+}
+
 /**
  * Реализация TrackRepository в памяти: тесты.
  * На пустой карте сразу создаёт основной район «Рядом» —
@@ -73,7 +82,7 @@ export class InMemoryTrackRepository implements TrackRepository {
   async addTrack(file: File, meta: TrackMetaInput): Promise<Track> {
     this.getDistrict(meta.districtId);
     const gpxText = await file.text();
-    const segments = parseGpxSegments(gpxText);
+    const segments = parseOrRepositoryError(gpxText);
     const id = crypto.randomUUID();
     const entry: Track & { gpxText: string } = {
       id,

@@ -11,6 +11,15 @@ import { segmentsBounds, segmentsDistanceKm } from '../../logic/geo';
 import { buildPreview } from '../preview';
 import { idbDelete, idbGet, idbGetAll, idbPut, openDb } from './idb';
 
+/** Ошибка парсера — тоже RepositoryError: внешние обработчики показывают текст только у него. */
+function parseOrRepositoryError(gpxText: string) {
+  try {
+    return parseGpxSegments(gpxText);
+  } catch (e) {
+    throw new RepositoryError(e instanceof Error ? e.message : 'Не удалось прочитать файл.');
+  }
+}
+
 /**
  * Локальная реализация TrackRepository: все данные и GPX-файлы живут
  * в браузере (IndexedDB), чтение мгновенное и работает без сети.
@@ -103,7 +112,7 @@ export class LocalTrackRepository implements TrackRepository {
     const db = await this.db;
     await this.getDistrict(db, meta.districtId);
     const gpxText = await file.text();
-    const segments = parseGpxSegments(gpxText);
+    const segments = parseOrRepositoryError(gpxText);
     const id = crypto.randomUUID();
     const record: TrackRecord = {
       id,
