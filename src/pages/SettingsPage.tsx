@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepo } from '../data/RepoContext';
 import { RepositoryError, type District } from '../data/repository';
+import { orderDistricts } from '../logic/districts';
 import { useTheme, type ThemePref } from '../theme/theme';
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
@@ -109,7 +110,7 @@ export function SettingsPage() {
       <section className="settings__section">
         <h2>Районы</h2>
         <ul className="settings__districts">
-          {districts.map((d) => (
+          {orderDistricts(districts).map((d) => (
             <li key={d.id} className="settings__district">
               {editing?.id === d.id ? (
                 <>
@@ -134,7 +135,7 @@ export function SettingsPage() {
               ) : (
                 <>
                   <span className="settings__district-name">
-                    {d.isPrimary ? '⌂ ' : ''}
+                    {d.isPrimary ? '★ ' : ''}
                     {d.name}
                   </span>
                   {!d.isPrimary && (

@@ -45,12 +45,13 @@ function renderAt(repo: InstanceType<typeof InMemoryTrackRepository>, trackId: s
   );
 }
 
-test('страница трека: имя, категория, км, описание, скачать с оригинальным именем', async () => {
+test('страница трека: имя, категория, км, район, описание, скачать с оригинальным именем', async () => {
   const { repo, track } = await makeRepo();
   renderAt(repo, track.id);
   expect(await screen.findByText('Кольцо Падуна')).toBeTruthy();
   expect(screen.getByText('вело')).toBeTruthy();
   expect(screen.getByText('12,4 км')).toBeTruthy();
+  expect(screen.getByText('★ Рядом', { exact: false })).toBeTruthy();
   expect(screen.getByText('любимая покатушка выходного дня')).toBeTruthy();
   const link = await screen.findByRole('link', { name: /Скачать GPX/ });
   expect(link.getAttribute('download')).toBe('кольцо падуна 😎.gpx');

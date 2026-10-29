@@ -153,6 +153,11 @@ button {
   white-space: nowrap;
 }
 
+.track-card__title svg {
+  flex: none;
+  color: var(--primary);
+}
+
 .track-card__km {
   flex: none;
   color: var(--text-dim);
@@ -299,6 +304,39 @@ button {
   font-size: 12px;
   color: var(--text-dim);
   align-self: flex-end;
+}
+
+/* Выбор GPX-файла: стилизованная зона вместо системной кнопки */
+.file-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 16px;
+  border: 2px dashed var(--card-border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-picker:focus-within {
+  border-color: var(--primary);
+}
+
+.file-picker svg {
+  flex: none;
+}
+
+.file-picker__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .field__ok {

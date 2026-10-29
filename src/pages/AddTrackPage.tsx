@@ -6,7 +6,9 @@ import type { Category } from '../data/types';
 import { parseGpxSegments, GpxParseError } from '../logic/gpx';
 import { segmentsDistanceKm } from '../logic/geo';
 import { validateTrackMeta, formatKm } from '../logic/format';
+import { orderDistricts } from '../logic/districts';
 import { ActivityIcon, CATEGORY_LABELS } from '../components/ActivityIcon';
+import { readSelectedDistrict } from './sessionDistrict';
 
 const CATEGORIES: Category[] = ['hike', 'bike', 'run', 'ski'];
 
@@ -57,7 +59,11 @@ export function AddTrackPage() {
     repo.listDistricts().then((list) => {
       if (!live) return;
       setDistricts(list);
-      setDistrictId((current) => current || (list.find((d) => d.isPrimary) ?? list[0])?.id || '');
+      // По умолчанию — район, выбранный на главной; нет его или выбора не было — основной.
+      const stored = readSelectedDistrict();
+      const preferred =
+        list.find((d) => d.id === stored) ?? list.find((d) => d.isPrimary) ?? list[0];
+      setDistrictId((current) => current || preferred?.id || '');
     });
     return () => {
       live = false;
@@ -123,12 +129,31 @@ export function AddTrackPage() {
       <div className="field">
         <label htmlFor="gpx-file">файл GPX</label>
         {isEdit ? null : (
-          <input
-            id="gpx-file"
-            type="file"
-            accept=".gpx,application/gpx+xml,text/xml"
-            onChange={(e) => onFile(e.target.files?.[0])}
-          />
+          <label className="file-picker">
+            <input
+              id="gpx-file"
+              type="file"
+              accept=".gpx,application/gpx+xml,text/xml"
+              className="file-picker__input"
+              onChange={(e) => onFile(e.target.files?.[0])}
+            />
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 16V4" />
+              <path d="m7 9 5-5 5 5" />
+              <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+            </svg>
+            выбрать GPX-файл
+          </label>
         )}
         {parsedKm !== null && <p className="field__ok">✓ {formatKm(parsedKm)}</p>}
         {fileError && <p className="field__error">{fileError}</p>}
@@ -173,9 +198,9 @@ export function AddTrackPage() {
           value={districtId}
           onChange={(e) => setDistrictId(e.target.value)}
         >
-          {districts.map((d) => (
+          {orderDistricts(districts).map((d) => (
             <option key={d.id} value={d.id}>
-              {d.isPrimary ? '⌂ ' : ''}
+              {d.isPrimary ? '★ ' : ''}
               {d.name}
             </option>
           ))}

@@ -3,21 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useRepo } from '../data/RepoContext';
 import type { District, Track } from '../data/repository';
 import { TrackCard } from '../components/TrackCard';
-
-const DISTRICT_KEY = 'roamark.district';
+import { orderDistricts } from '../logic/districts';
+import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
 
 /** Главная: шапка с селектом районов, кнопка «+», список треков основного экрана. */
 export function HomePage() {
   const repo = useRepo();
   const navigate = useNavigate();
   const [districts, setDistricts] = useState<District[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    try {
-      return sessionStorage.getItem(DISTRICT_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [selectedId, setSelectedId] = useState<string | null>(() => readSelectedDistrict());
   const [tracks, setTracks] = useState<Track[]>([]);
 
   useEffect(() => {
@@ -46,11 +40,7 @@ export function HomePage() {
 
   const onSelect = (id: string) => {
     setSelectedId(id);
-    try {
-      sessionStorage.setItem(DISTRICT_KEY, id);
-    } catch {
-      /* без sessionStorage выбор живёт до перезагрузки */
-    }
+    writeSelectedDistrict(id);
   };
 
   return (
@@ -63,9 +53,9 @@ export function HomePage() {
           onChange={(e) => onSelect(e.target.value)}
           aria-label="Район"
         >
-          {districts.map((d) => (
+          {orderDistricts(districts).map((d) => (
             <option key={d.id} value={d.id}>
-              {d.isPrimary ? '⌂ ' : ''}
+              {d.isPrimary ? '★ ' : ''}
               {d.name}
             </option>
           ))}

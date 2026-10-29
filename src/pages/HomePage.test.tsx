@@ -68,3 +68,15 @@ test('внизу списка — атрибуция карт (мини-карт
   expect(await screen.findByText(/CyclOSM/)).toBeTruthy();
   expect(screen.getByText(/OpenStreetMap/)).toBeTruthy();
 });
+
+test('селект районов: первым основной со звёздочкой, затем остальные', async () => {
+  const { repo } = await repoWithTrack();
+  const far = await repo.createDistrict('Далеко');
+  await repo.setPrimaryDistrict(far.id);
+  renderAt(repo);
+  const select = (await screen.findByRole('combobox')) as HTMLSelectElement;
+  expect(select.options[0].textContent).toContain('★');
+  expect(select.options[0].textContent).toContain('Далеко');
+  expect(select.options[1].textContent).toContain('Рядом');
+  expect(select.options[1].textContent).not.toContain('★');
+});

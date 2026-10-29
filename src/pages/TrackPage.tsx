@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useRepo } from '../data/RepoContext';
-import { RepositoryError, type Track } from '../data/repository';
+import { RepositoryError, type District, type Track } from '../data/repository';
 import type { LatLng } from '../data/types';
 import { parseGpxSegments } from '../logic/gpx';
 import { formatKm } from '../logic/format';
@@ -14,6 +14,7 @@ export function TrackPage() {
   const repo = useRepo();
   const navigate = useNavigate();
   const [track, setTrack] = useState<Track | null>(null);
+  const [district, setDistrict] = useState<District | null>(null);
   const [segments, setSegments] = useState<LatLng[][]>([]);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +28,8 @@ export function TrackPage() {
       .then(async (t) => {
         if (!live) return;
         setTrack(t);
+        const list = await repo.listDistricts();
+        if (live) setDistrict(list.find((d) => d.id === t.districtId) ?? null);
         const text = await repo.getGpxText(id);
         if (live) setSegments(parseGpxSegments(text));
         const url = await repo.getDownloadUrl(id);
@@ -80,6 +83,15 @@ export function TrackPage() {
           <span>{CATEGORY_LABELS[track.category]}</span>
           <span>·</span>
           <span>{formatKm(track.distanceKm)}</span>
+          {district && (
+            <>
+              <span>·</span>
+              <span>
+                {district.isPrimary ? '★ ' : ''}
+                {district.name}
+              </span>
+            </>
+          )}
         </p>
         {track.description && <p className="track-meta__desc">{track.description}</p>}
         {downloadUrl && (

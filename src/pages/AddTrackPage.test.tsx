@@ -63,6 +63,14 @@ test('валидный GPX: «✓ км», название автозаполн�
   expect((screen.getByLabelText('название') as HTMLInputElement).value).toBe('Кольцо Падуна');
 });
 
+test('выбор файла — стилизованная зона, нативный input спрятан', async () => {
+  const repo = new InMemoryTrackRepository({ demo: true });
+  renderAt(repo, '/add');
+  expect(screen.getByText('выбрать GPX-файл')).toBeTruthy();
+  const input = screen.getByLabelText('файл GPX') as HTMLInputElement;
+  expect(input.classList.contains('file-picker__input')).toBe(true);
+});
+
 test('не-GPX файл: ошибка, «сохранить» недоступна', async () => {
   const repo = new InMemoryTrackRepository({ demo: true });
   renderAt(repo, '/add');
@@ -98,4 +106,30 @@ test('edit: поля предзаполнены, файла нет, дистан
   const updated = await repo.getTrack(track.id);
   expect(updated.name).toBe('Новое имя');
   expect(updated.distanceKm).toBe(track.distanceKm);
+});
+
+test('район по умолчанию — текущий на главной (sessionStorage), а не основной', async () => {
+  const repo = new InMemoryTrackRepository({ demo: true });
+  const far = await repo.createDistrict('Далеко');
+  sessionStorage.setItem('roamark.district', far.id);
+  try {
+    renderAt(repo, '/add');
+    const select = (await screen.findByLabelText('район')) as HTMLSelectElement;
+    expect(select.value).toBe(far.id);
+  } finally {
+    sessionStorage.removeItem('roamark.district');
+  }
+});
+
+test('удалённый район в sessionStorage: по умолчанию — основной', async () => {
+  const repo = new InMemoryTrackRepository({ demo: true });
+  sessionStorage.setItem('roamark.district', 'несуществующий-id');
+  try {
+    renderAt(repo, '/add');
+    const select = (await screen.findByLabelText('район')) as HTMLSelectElement;
+    const home = (await repo.listDistricts())[0];
+    expect(select.value).toBe(home.id);
+  } finally {
+    sessionStorage.removeItem('roamark.district');
+  }
 });
