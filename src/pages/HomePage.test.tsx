@@ -107,6 +107,28 @@ test('пока районы грузятся — «загружаем…», а �
   expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
 });
 
+test('районы переживают обрыв сети: после двух промахов список загружается', async () => {
+  const { repo } = await repoWithTrack();
+  const orig = repo.listDistricts.bind(repo);
+  vi.spyOn(repo, 'listDistricts')
+    .mockRejectedValueOnce(new Error('обрыв'))
+    .mockRejectedValueOnce(new Error('обрыв'))
+    .mockImplementation(orig);
+  renderAt(repo);
+  expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
+});
+
+test('когда районы не грузятся — сообщение и кнопка «повторить» лечит', async () => {
+  const { repo } = await repoWithTrack();
+  const orig = repo.listDistricts.bind(repo);
+  const spy = vi.spyOn(repo, 'listDistricts').mockRejectedValue(new Error('обрыв'));
+  renderAt(repo);
+  expect(await screen.findByText(/не получилось загрузить/i)).toBeTruthy();
+  spy.mockImplementation(orig);
+  screen.getByRole('button', { name: /повторить/ }).click();
+  expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
+});
+
 test('главная рисуется из кэша до ответа сервера, ответ обновляет список', async () => {
   const { repo } = await repoWithTrack();
   const cachedTrack: Track = {

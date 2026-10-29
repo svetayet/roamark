@@ -5,6 +5,7 @@ import type { District, Track } from '../data/repository';
 import { TrackCard } from '../components/TrackCard';
 import { Brand } from '../components/Brand';
 import { orderDistricts } from '../logic/districts';
+import { withRetry } from '../logic/retry';
 import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
 import { readCachedDistricts, writeCachedDistricts, readCachedTracks, writeCachedTracks } from './homeCache';
 
@@ -18,39 +19,64 @@ export function HomePage() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(() => readCachedDistricts() === null);
   const [tracksLoading, setTracksLoading] = useState(true);
+  // Упавшая загрузка не должна висеть вечным «загружаем…»: показываем ошибку
+  // и даём повторить одним нажатием.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [tracksFailed, setTracksFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    repo.listDistricts().then((list) => {
-      setDistricts(list);
-      writeCachedDistricts(list);
-      setSelectedId((current) => {
-        if (current && list.some((d) => d.id === current)) return current;
-        return (list.find((d) => d.isPrimary) ?? list[0])?.id ?? null;
+    let live = true;
+    setLoadFailed(false);
+    withRetry(() => repo.listDistricts())
+      .then((list) => {
+        if (!live) return;
+        setDistricts(list);
+        writeCachedDistricts(list);
+        setSelectedId((current) => {
+          if (current && list.some((d) => d.id === current)) return current;
+          return (list.find((d) => d.isPrimary) ?? list[0])?.id ?? null;
+        });
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!live) return;
+        setLoading(false);
+        setLoadFailed(true);
       });
-      setLoading(false);
-    });
-  }, [repo]);
+    return () => {
+      live = false;
+    };
+  }, [repo, reloadKey]);
 
   useEffect(() => {
     if (!selectedId) {
       setTracks([]);
       setTracksLoading(false);
+      setTracksFailed(false);
       return;
     }
     const cached = readCachedTracks(selectedId);
     setTracks(cached ?? []);
     setTracksLoading(cached === null);
+    setTracksFailed(false);
     let live = true;
-    repo.listTracks(selectedId).then((list) => {
-      if (!live) return;
-      setTracks(list);
-      writeCachedTracks(selectedId, list);
-      setTracksLoading(false);
-    });
+    withRetry(() => repo.listTracks(selectedId))
+      .then((list) => {
+        if (!live) return;
+        setTracks(list);
+        writeCachedTracks(selectedId, list);
+        setTracksLoading(false);
+      })
+      .catch(() => {
+        if (!live) return;
+        setTracksLoading(false);
+        setTracksFailed(true);
+      });
     return () => {
       live = false;
     };
-  }, [repo, selectedId]);
+  }, [repo, selectedId, reloadKey]);
 
   const onSelect = (id: string) => {
     setSelectedId(id);
@@ -98,7 +124,14 @@ export function HomePage() {
           </svg>
         </button>
       </header>
-      {loading || tracksLoading ? (
+      {loadFailed || tracksFailed ? (
+        <div className="home__empty">
+          <p>не получилось загрузить — связь с сервером не идёт</p>
+          <button className="btn btn--primary" onClick={() => setReloadKey((k) => k + 1)}>
+            повторить
+          </button>
+        </div>
+      ) : loading || tracksLoading ? (
         <div className="home__empty">
           <p>загружаем…</p>
         </div>
