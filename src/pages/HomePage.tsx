@@ -110,6 +110,9 @@ export function HomePage() {
           ))}
         </ul>
       )}
+      <footer className="home__attribution">
+        карты: CyclOSM · данные © участники OpenStreetMap
+      </footer>
     </div>
   );
 }

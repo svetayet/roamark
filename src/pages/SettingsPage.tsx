@@ -24,6 +24,7 @@ export function SettingsPage() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [hint, setHint] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
+  const [newName, setNewName] = useState('');
 
   const reload = () => repo.listDistricts().then(setDistricts);
   useEffect(() => {
@@ -55,6 +56,19 @@ export function SettingsPage() {
     try {
       await repo.renameDistrict(id, editing.draft);
       setEditing(null);
+      await reload();
+    } catch (e) {
+      setHint(hintOf(e));
+    }
+  };
+
+  const create = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setHint(null);
+    try {
+      await repo.createDistrict(name);
+      setNewName('');
       await reload();
     } catch (e) {
       setHint(hintOf(e));
@@ -139,6 +153,21 @@ export function SettingsPage() {
             </li>
           ))}
         </ul>
+        <div className="settings__new">
+          <input
+            aria-label="имя нового района"
+            className="settings__new-name"
+            placeholder="новый район"
+            value={newName}
+            onInput={(e) => setNewName((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void create();
+            }}
+          />
+          <button className="btn" onClick={create} disabled={!newName.trim()}>
+            добавить
+          </button>
+        </div>
         {hint && <p className="settings__hint">{hint}</p>}
       </section>
 

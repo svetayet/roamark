@@ -10,6 +10,8 @@ interface MapViewProps {
   segments: LatLng[][];
   /** false — мини-карта в карточках: без зума, драга и скролла. */
   interactive?: boolean;
+  /** false — спрятать плашку атрибуции (мини-карты; attribution обязателен, но на 96×72 он закрывает карту). */
+  attribution?: boolean;
   /** Подогнать вид по треку (по умолчанию да). */
   fit?: boolean;
   className?: string;
@@ -19,6 +21,7 @@ interface MapViewProps {
 export function MapView({
   segments,
   interactive = true,
+  attribution = true,
   fit = true,
   className,
 }: MapViewProps) {
@@ -39,9 +42,12 @@ export function MapView({
       touchZoom: interactive,
       boxZoom: interactive,
       keyboard: interactive,
-      attributionControl: true,
+      attributionControl: attribution,
     });
     mapRef.current = map;
+    // Подложка одна (CyclOSM) — от темы не зависит, ставим один раз.
+    const { url, attribution: attr } = tileLayer();
+    tileRef.current = L.tileLayer(url, { attribution: attr, maxZoom: 19 }).addTo(map);
     linesRef.current = L.layerGroup().addTo(map);
     return () => {
       map.remove();
@@ -51,15 +57,6 @@ export function MapView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- карта создаётся один раз
   }, []);
-
-  // Подложка меняется со сменой темы (атрибуция у слоёв разная — слой пересоздаётся).
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    tileRef.current?.remove();
-    const { url, attribution } = tileLayer(resolved);
-    tileRef.current = L.tileLayer(url, { attribution, maxZoom: 19 }).addTo(map);
-  }, [resolved]);
 
   // Трек перерисовывается при смене segments или темы.
   useEffect(() => {

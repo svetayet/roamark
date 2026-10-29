@@ -125,6 +125,34 @@ test('ошибка «сделать основным» показана подс
   expect(await screen.findByText('Не получилось. Попробуй ещё раз.')).toBeTruthy();
 });
 
+test('создание района: имя + «добавить» → район появляется в списке', async () => {
+  const { repo } = await setup();
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  fireEvent.input(screen.getByLabelText('имя нового района'), {
+    target: { value: 'Хамар-Дабан' },
+  });
+  screen.getByRole('button', { name: /добавить/ }).click();
+  await waitFor(async () => {
+    const list = await repo.listDistricts();
+    expect(list.some((d) => d.name === 'Хамар-Дабан')).toBe(true);
+  });
+  expect(await screen.findByText('Хамар-Дабан', { exact: false })).toBeTruthy();
+});
+
+test('создание района с ошибкой: подсказка, район не появился', async () => {
+  const { repo } = await setup();
+  vi.spyOn(repo, 'createDistrict').mockRejectedValueOnce(new Error('offline'));
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  fireEvent.input(screen.getByLabelText('имя нового района'), {
+    target: { value: 'Хамар-Дабан' },
+  });
+  screen.getByRole('button', { name: /добавить/ }).click();
+  expect(await screen.findByText('Не получилось. Попробуй ещё раз.')).toBeTruthy();
+  expect((await repo.listDistricts()).some((d) => d.name === 'Хамар-Дабан')).toBe(false);
+});
+
 test('ошибка переименования показана подсказкой', async () => {
   const { repo } = await setup();
   vi.spyOn(repo, 'renameDistrict').mockRejectedValueOnce(new Error('offline'));

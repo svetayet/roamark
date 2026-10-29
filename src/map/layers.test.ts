@@ -1,11 +1,11 @@
 import { tileLayer, trackLineStyle, decimateSegmentsForRender } from './layers';
 import type { LatLng } from '../data/types';
 
-test('tileLayer: light — CyclOSM, dark — CARTO dark_all; атрибуции непустые', () => {
-  expect(tileLayer('light').url).toContain('cyclosm');
-  expect(tileLayer('dark').url).toContain('dark_all');
-  expect(tileLayer('light').attribution.length).toBeGreaterThan(0);
-  expect(tileLayer('dark').attribution.length).toBeGreaterThan(0);
+test('tileLayer: CyclOSM для обеих тем (CARTO требует api-ключ); атрибуция непустая', () => {
+  const { url, attribution } = tileLayer();
+  expect(url).toContain('cyclosm');
+  expect(url).not.toContain('cartocdn');
+  expect(attribution).toContain('OpenStreetMap');
 });
 
 test('trackLineStyle: светлая тема — тёмно-изумрудный, тёмная — светлее; кант белый 6/3.5', () => {

@@ -1,17 +1,16 @@
 import type { LatLng } from '../data/types';
 import { decimate } from '../logic/geo';
 
-/** Подложки: CyclOSM (светлая) / CARTO dark_all (тёмная). Атрибуция обязательна. */
-export function tileLayer(mode: 'light' | 'dark'): { url: string; attribution: string } {
-  return mode === 'light'
-    ? {
-        url: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
-        attribution: 'CyclOSM | © OpenStreetMap contributors',
-      }
-    : {
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        attribution: '© OpenStreetMap contributors © CARTO',
-      };
+/**
+ * Подложка одна на обе темы — CyclOSM: он достаточно нейтральный по тону,
+ * а бесплатные CARTO-тайлы с 2026-го требуют api-ключ и не отрисовываются.
+ * Атрибуция обязательна.
+ */
+export function tileLayer(): { url: string; attribution: string } {
+  return {
+    url: 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
+    attribution: 'CyclOSM | © OpenStreetMap contributors',
+  };
 }
 
 /** Стиль линии трека: изумруд из палитры «ель», белый кант под ней. */

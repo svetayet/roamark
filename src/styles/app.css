@@ -90,17 +90,38 @@ button {
   gap: 10px;
 }
 
+.home__attribution {
+  margin-top: auto;
+  padding: 12px 16px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+}
+
 .track-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--card-border);
   background: var(--card);
-  cursor: pointer;
+}
+
+.track-card__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
 .track-card__map {
@@ -114,6 +135,13 @@ button {
 .track-card__body {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.track-card__title {
+  display: flex;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
@@ -125,12 +153,33 @@ button {
   white-space: nowrap;
 }
 
-.track-card__meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.track-card__km {
+  flex: none;
   color: var(--text-dim);
   font-size: 14px;
+}
+
+.track-card__desc {
+  color: var(--text-dim);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-card__download {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  color: var(--primary);
+}
+
+.track-card__download svg {
+  display: block;
 }
 
 /* Пустой район */
@@ -402,6 +451,23 @@ button {
 
 [data-theme='dark'] .link--danger {
   color: #e57368;
+}
+
+.settings__new {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.settings__new-name {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
 }
 
 .settings__hint {

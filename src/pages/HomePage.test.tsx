@@ -61,3 +61,10 @@ test('пустой район: «здесь пока ничего нет» и к
   screen.getByRole('button', { name: /добавить трек/ }).click();
   await waitFor(() => expect(screen.getByTestId('add-page')).toBeTruthy());
 });
+
+test('внизу списка — атрибуция карт (мини-карты её не показывают)', async () => {
+  const { repo } = await repoWithTrack();
+  renderAt(repo);
+  expect(await screen.findByText(/CyclOSM/)).toBeTruthy();
+  expect(screen.getByText(/OpenStreetMap/)).toBeTruthy();
+});
