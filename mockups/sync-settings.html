@@ -1,0 +1,217 @@
+<title>Синхронизация roaMark</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root {
+    --primary: #0f6b51;
+    --secondary: #2e9b72;
+    --bg: #f0f3f1;
+    --card: #ffffff;
+    --card-border: #dfe7e2;
+    --text: #1f2925;
+    --text-dim: #66766f;
+    --danger: #c0392b;
+    --on-primary: #ffffff;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #7fc8a6;
+      --secondary: #7fc8a6;
+      --bg: #222725;
+      --card: #2a302d;
+      --card-border: #353d39;
+      --text: #e8edea;
+      --text-dim: #97a5a0;
+      --danger: #e57368;
+      --on-primary: #1f2925;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --primary: #7fc8a6;
+    --secondary: #7fc8a6;
+    --bg: #222725;
+    --card: #2a302d;
+    --card-border: #353d39;
+    --text: #e8edea;
+    --text-dim: #97a5a0;
+    --danger: #e57368;
+    --on-primary: #1f2925;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 28px max(16px, env(safe-area-inset-left, 0px)) 56px max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 26px; flex-wrap: wrap; }
+  .top h1 { margin: 0 0 8px; font-size: 24px; font-weight: 600; }
+  .top h1 .m { color: var(--secondary); }
+  .lead { margin: 0; color: var(--text-dim); font-size: 14px; max-width: 560px; line-height: 1.5; }
+
+  .theme-btn {
+    flex: none; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--card-border);
+    background: var(--card); cursor: pointer; font-size: 13px; color: var(--text-dim);
+  }
+
+  .part { margin: 0 0 34px; }
+  .part > h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 6px; }
+  .part > .sub { margin: 0 0 16px; color: var(--text-dim); font-size: 13px; line-height: 1.5; max-width: 640px; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+  .cell { display: flex; flex-direction: column; gap: 10px; }
+  .cell .cap { font-size: 13px; color: var(--text-dim); line-height: 1.5; max-width: 330px; margin: 0; }
+  .cell .cap b { color: var(--text); }
+
+  /* «телефон» */
+  .phone {
+    width: 332px; max-width: 100%; flex: none;
+    border: 1px solid var(--card-border); border-radius: 26px;
+    background: var(--bg); padding: 16px 14px 18px;
+    box-shadow: 0 8px 28px rgba(31, 41, 37, 0.10);
+  }
+  .app-head { display: flex; align-items: center; gap: 10px; padding: 2px 4px 12px; }
+  .app-head .back { color: var(--primary); font-size: 13px; }
+  .app-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+
+  .sec-h {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-dim); margin: 4px 2px 10px;
+  }
+
+  .card { border: 1px solid var(--card-border); border-radius: 12px; background: var(--card); padding: 12px; margin-bottom: 10px; }
+
+  .opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--bg); margin-bottom: 8px; font-size: 14px; }
+  .opt--on { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+  .opt--off { color: var(--text-dim); }
+  .opt .badge { margin-left: auto; font-size: 11px; color: var(--text-dim); font-weight: 400; }
+
+  .row-line { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 8px; }
+  .row-line .name { font-weight: 600; }
+  .row-line .link { margin-left: auto; color: var(--primary); font-size: 13px; }
+
+  .st { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0 0 10px; }
+  .st b { color: var(--text); font-weight: 600; }
+  .st .ok { color: var(--primary); font-weight: 600; }
+  .st .up { color: var(--secondary); font-weight: 600; }
+  .st .down { color: var(--primary); font-weight: 600; }
+  .st .warn { color: var(--danger); font-weight: 600; }
+
+  .btns { display: flex; gap: 8px; }
+  .btn { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--card); cursor: pointer; text-align: center; }
+  .btn--primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; }
+  .btn--big { width: 100%; padding: 13px 16px; font-size: 15px; font-weight: 600; }
+
+  .note { font-size: 12px; color: var(--text-dim); margin: 6px 2px 0; line-height: 1.5; }
+  .note .warn { color: var(--danger); }
+
+  .foot { border-top: 1px solid var(--card-border); padding-top: 20px; margin-top: 8px; }
+  .foot h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 10px; }
+  .foot ul { margin: 0 0 18px; padding-left: 20px; color: var(--text-dim); font-size: 14px; line-height: 1.7; }
+  .foot ul b { color: var(--text); }
+  .foot p { margin: 0 0 10px; font-size: 14px; line-height: 1.6; color: var(--text-dim); }
+  .foot p b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>roaMar<span class="m">k</span> · синхронизация</h1>
+      <p class="lead">Выбранный вид раздела «Синхронизация» в настройках — в палитре приложения, светлая и тёмная темы. Все данные остаются в телефоне и работают без сети; облако — запасная копия и перенос между устройствами. Одна кнопка, слияние по датам.</p>
+    </div>
+    <button class="theme-btn" id="theme">переключить тему</button>
+  </div>
+
+  <div class="part">
+    <h2>Шаг 1 · подключение</h2>
+    <p class="sub">Так выглядит раздел, когда облако ещё не выбрано. «Подключить» спросит у Яндекса разрешение — как вход через Гугл на других сайтах.</p>
+    <div class="row">
+      <div class="cell">
+        <div class="phone">
+          <div class="app-head"><span class="back">← все треки</span><h3>настройки</h3></div>
+          <div class="sec-h">Синхронизация</div>
+          <div class="card">
+            <div class="row-line"><span class="name">запасная копия</span></div>
+            <div class="opt opt--on">✓ Яндекс.Диск<span class="badge">бесплатно</span></div>
+            <div class="opt opt--off">GitHub<span class="badge">вторым этапом</span></div>
+            <div class="btns"><button class="btn btn--primary">подключить Яндекс.Диск</button></div>
+            <p class="note">в копию входят районы, у треков — название, описание, вид активности, километраж + сам GPX-файл байт-в-байт</p>
+          </div>
+        </div>
+        <p class="cap">Выбор хранилища. В будущем здесь появится GitHub — <b>каждая пользовательница указывает своё место</b>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="part">
+    <h2>Одна кнопка «синхронизироваться» · состояния</h2>
+    <p class="sub">Кнопка сравнивает даты каждой записи (каждый трек, каждый район) — чья запись новее, та и главнее. Новое с обоих устройств остаётся, потому что каждая новая запись — «новее» в своей строке.</p>
+    <div class="row">
+      <div class="cell">
+        <div class="phone">
+          <div class="app-head"><span class="back">← все треки</span><h3>настройки</h3></div>
+          <div class="sec-h">Синхронизация</div>
+          <div class="card">
+            <div class="row-line"><span class="name">Яндекс.Диск</span><span class="link">отключить</span></div>
+            <p class="st"><span class="ok">✓ всё совпадает</span> · 12 треков в 3 районах · выложено вчера, 21:14</p>
+            <div class="btns"><button class="btn btn--primary btn--big">синхронизироваться</button></div>
+          </div>
+        </div>
+        <p class="cap">Спокойный случай: телефон и Диск совпадают, кнопка просто перепроверит.</p>
+      </div>
+      <div class="cell">
+        <div class="phone">
+          <div class="app-head"><span class="back">← все треки</span><h3>настройки</h3></div>
+          <div class="sec-h">Синхронизация</div>
+          <div class="card">
+            <div class="row-line"><span class="name">Яндекс.Диск</span><span class="link">отключить</span></div>
+            <p class="st"><span class="down">⬇ с Диска придёт 1 трек</span> (выложен с компьютера) · <span class="up">⬆ наверх уйдёт 1 трек</span> (добавлен на телефоне)</p>
+            <div class="btns"><button class="btn btn--primary btn--big">синхронизироваться</button></div>
+          </div>
+        </div>
+        <p class="cap">Обычный случай: добавила на телефоне, на компьютере — своё. <b>Останутся оба трека</b>: каждая запись сравнивается отдельно, ничего не стирается.</p>
+      </div>
+      <div class="cell">
+        <div class="phone">
+          <div class="app-head"><span class="back">← все треки</span><h3>настройки</h3></div>
+          <div class="sec-h">Синхронизация</div>
+          <div class="card">
+            <div class="row-line"><span class="name">Яндекс.Диск</span><span class="link">отключить</span></div>
+            <p class="st"><span class="ok">✓ синхронизировано</span> · забрано 1 трек, выложено 1 · 14:02</p>
+            <p class="st"><span class="warn">одна запись менялась на двух устройствах</span> — у «Кольцо Падуна» осталась версия с телефона (новее, сегодня 14:00)</p>
+            <div class="btns"><button class="btn btn--primary btn--big">синхронизироваться</button></div>
+          </div>
+        </div>
+        <p class="cap">После нажатия — сводка. Редкий случай (меняли одно и то же на двух устройствах) назван честно: осталась более свежая версия.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <h2>Что входит в копию</h2>
+    <ul>
+      <li><b>Районы</b> — все, включая какой основной (★)</li>
+      <li><b>У каждого трека</b> — название, описание, вид активности, район, километраж, дата</li>
+      <li><b>Сам GPX-файл</b> — байт-в-байт, поэтому скачивание остаётся точным</li>
+    </ul>
+    <h2>Правило слияния</h2>
+    <p>Каждая запись (трек, район) несёт дату изменения. При нажатии кнопки записи с Диска и из телефона сравниваются попарно: <b>чья новее — та и главнее</b>. Новые записи с обеих сторон остаются обе. Если меняли одну и ту же запись на двух устройствах — выживает более свежая версия, и приложение пишет об этом в сводке. Удаление — тоже запись с датой: удалила трек на компьютере и синхронизировала — на телефоне он тоже исчезнет.</p>
+  </div>
+
+</div>
+<script>
+  document.getElementById('theme').onclick = function () {
+    var r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+  };
+</script>
+</body>
+</html>
