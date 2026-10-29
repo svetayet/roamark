@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import 'fake-indexeddb/auto';
 import { beforeEach } from 'vitest';
 
 // В окружении vitest 4 + jsdom глобальный localStorage/sessionStorage может
