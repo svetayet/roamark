@@ -3,9 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import { RepoProvider } from '../data/RepoContext';
 import { InMemoryTrackRepository } from '../data/memory';
-import type { District, Track } from '../data/repository';
-import { writeCachedDistricts, writeCachedTracks } from './homeCache';
-import { writeSelectedDistrict } from './sessionDistrict';
+import type { District } from '../data/repository';
 
 vi.mock('../map/MapView', () => ({ MapView: () => <div data-testid="mini-map" /> }));
 
@@ -107,15 +105,14 @@ test('пока районы грузятся — «загружаем…», а �
   expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
 });
 
-test('районы переживают обрыв сети: после двух промахов список загружается', async () => {
+test('один обрыв чтения уже показывает ошибку — авто-повторов нет', async () => {
   const { repo } = await repoWithTrack();
   const orig = repo.listDistricts.bind(repo);
   vi.spyOn(repo, 'listDistricts')
     .mockRejectedValueOnce(new Error('обрыв'))
-    .mockRejectedValueOnce(new Error('обрыв'))
     .mockImplementation(orig);
   renderAt(repo);
-  expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
+  expect(await screen.findByText(/не получилось загрузить/i)).toBeTruthy();
 });
 
 test('когда районы не грузятся — сообщение и кнопка «повторить» лечит', async () => {
@@ -127,38 +124,4 @@ test('когда районы не грузятся — сообщение и к
   spy.mockImplementation(orig);
   screen.getByRole('button', { name: /повторить/ }).click();
   expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
-});
-
-test('главная рисуется из кэша до ответа сервера, ответ обновляет список', async () => {
-  const { repo } = await repoWithTrack();
-  const cachedTrack: Track = {
-    id: 'cached-t1',
-    districtId: 'cached',
-    category: 'hike',
-    name: 'Старый трек из кэша',
-    description: null,
-    distanceKm: 7,
-    originalFilename: 'old.gpx',
-    storagePath: 'old.gpx',
-    bounds: null,
-    previewSegments: [],
-    createdAt: '2026-10-01',
-  };
-  writeCachedDistricts([{ id: 'cached', name: 'Кэш-район', isPrimary: true }]);
-  writeCachedTracks('cached', [cachedTrack]);
-  writeSelectedDistrict('cached');
-  const orig = repo.listDistricts.bind(repo);
-  let release!: (list: District[]) => void;
-  const gate = new Promise<District[]>((res) => (release = res));
-  vi.spyOn(repo, 'listDistricts').mockImplementation(() => gate);
-  renderAt(repo);
-  // До ответа сервера кэш уже на экране — без «загружаем…».
-  const select = screen.getByRole('combobox') as HTMLSelectElement;
-  expect(select.textContent).toContain('Кэш-район');
-  expect(screen.getByText('Старый трек из кэша')).toBeTruthy();
-  expect(screen.queryByText('загружаем…')).toBeNull();
-  // Ответ сервера заменяет кэш живыми данными.
-  release(await orig());
-  expect(await screen.findByRole('button', { name: /Кольцо Падуна/ })).toBeTruthy();
-  expect(screen.queryByText('Старый трек из кэша')).toBeNull();
 });

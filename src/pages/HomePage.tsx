@@ -5,34 +5,30 @@ import type { District, Track } from '../data/repository';
 import { TrackCard } from '../components/TrackCard';
 import { Brand } from '../components/Brand';
 import { orderDistricts } from '../logic/districts';
-import { withRetry } from '../logic/retry';
 import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
-import { readCachedDistricts, writeCachedDistricts, readCachedTracks, writeCachedTracks } from './homeCache';
 
 /** Главная: шапка с селектом районов, кнопка «+», список треков основного экрана. */
 export function HomePage() {
   const repo = useRepo();
   const navigate = useNavigate();
-  // Кэш рисует экран до ответа сервера; «загружаем…» остаётся только без кэша.
-  const [districts, setDistricts] = useState<District[]>(() => readCachedDistricts() ?? []);
+  const [districts, setDistricts] = useState<District[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(() => readSelectedDistrict());
   const [tracks, setTracks] = useState<Track[]>([]);
-  const [loading, setLoading] = useState(() => readCachedDistricts() === null);
+  const [loading, setLoading] = useState(true);
   const [tracksLoading, setTracksLoading] = useState(true);
-  // Упавшая загрузка не должна висеть вечным «загружаем…»: показываем ошибку
-  // и даём повторить одним нажатием.
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [tracksFailed, setTracksFailed] = useState(false);
+  // Хранилище локальное и быстрое; если чтение всё же упало — честная ошибка
+  // и повтор одним нажатием, без авто-повторов и кэша.
+  const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let live = true;
-    setLoadFailed(false);
-    withRetry(() => repo.listDistricts())
+    setFailed(false);
+    repo
+      .listDistricts()
       .then((list) => {
         if (!live) return;
         setDistricts(list);
-        writeCachedDistricts(list);
         setSelectedId((current) => {
           if (current && list.some((d) => d.id === current)) return current;
           return (list.find((d) => d.isPrimary) ?? list[0])?.id ?? null;
@@ -42,7 +38,7 @@ export function HomePage() {
       .catch(() => {
         if (!live) return;
         setLoading(false);
-        setLoadFailed(true);
+        setFailed(true);
       });
     return () => {
       live = false;
@@ -53,25 +49,21 @@ export function HomePage() {
     if (!selectedId) {
       setTracks([]);
       setTracksLoading(false);
-      setTracksFailed(false);
       return;
     }
-    const cached = readCachedTracks(selectedId);
-    setTracks(cached ?? []);
-    setTracksLoading(cached === null);
-    setTracksFailed(false);
     let live = true;
-    withRetry(() => repo.listTracks(selectedId))
+    setTracksLoading(true);
+    repo
+      .listTracks(selectedId)
       .then((list) => {
         if (!live) return;
         setTracks(list);
-        writeCachedTracks(selectedId, list);
         setTracksLoading(false);
       })
       .catch(() => {
         if (!live) return;
         setTracksLoading(false);
-        setTracksFailed(true);
+        setFailed(true);
       });
     return () => {
       live = false;
@@ -124,9 +116,9 @@ export function HomePage() {
           </svg>
         </button>
       </header>
-      {loadFailed || tracksFailed ? (
+      {failed ? (
         <div className="home__empty">
-          <p>не получилось загрузить — связь с сервером не идёт</p>
+          <p>не получилось загрузить</p>
           <button className="btn btn--primary" onClick={() => setReloadKey((k) => k + 1)}>
             повторить
           </button>
