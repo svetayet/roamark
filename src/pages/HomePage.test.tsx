@@ -69,6 +69,16 @@ test('внизу списка — атрибуция карт (мини-карт
   expect(screen.getByText(/OpenStreetMap/)).toBeTruthy();
 });
 
+test('шапка: знак-логотип — плитка с горой, roaMark с мятной M', async () => {
+  const { repo } = await repoWithTrack();
+  const { container } = renderAt(repo);
+  const brand = container.querySelector('.home__brand');
+  expect(brand).toBeTruthy();
+  expect(brand!.querySelector('svg')).toBeTruthy();
+  expect(brand!.textContent).toBe('roaMark');
+  expect(brand!.querySelector('.home__brand-m')?.textContent).toBe('M');
+});
+
 test('селект районов: первым основной со звёздочкой, затем остальные', async () => {
   const { repo } = await repoWithTrack();
   const far = await repo.createDistrict('Далеко');

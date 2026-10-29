@@ -1,13 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="96" fill="#0F6B51"/>
-  <polyline
-    points="96,352 168,288 232,320 296,208 368,240 416,160"
+  <!-- гора с двумя пиками -->
+  <path
+    d="M88 372 L182 228 L234 296 L304 188 L424 372"
     fill="none"
     stroke="#FFFFFF"
-    stroke-width="28"
+    stroke-width="30"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-  <circle cx="96" cy="352" r="22" fill="#7FC8A6"/>
-  <circle cx="416" cy="160" r="22" fill="#7FC8A6"/>
+  <!-- флаг на вершине -->
+  <path d="M304 188 V120" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"/>
+  <path d="M304 120 L368 142 L304 164 Z" fill="#7FC8A6"/>
+  <!-- пунктирная тропа по склону -->
+  <path
+    d="M136 348 C 168 340, 156 296, 196 292"
+    fill="none"
+    stroke="#7FC8A6"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-dasharray="4 44"
+  />
 </svg>

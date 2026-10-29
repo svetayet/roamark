@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRepo } from '../data/RepoContext';
 import type { District, Track } from '../data/repository';
 import { TrackCard } from '../components/TrackCard';
+import { Brand } from '../components/Brand';
 import { orderDistricts } from '../logic/districts';
 import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
 
@@ -46,7 +47,7 @@ export function HomePage() {
   return (
     <div className="home">
       <header className="home__header">
-        <span className="home__brand">roaMark</span>
+        <Brand />
         <select
           className="home__districts"
           value={selectedId ?? ''}

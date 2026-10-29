@@ -35,8 +35,24 @@ button {
 }
 
 .home__brand {
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 400;
+  font-size: 17px;
   letter-spacing: 0.02em;
+}
+
+.home__brand-tile {
+  flex: none;
+}
+
+.home__brand-m {
+  color: var(--secondary);
+}
+
+[data-theme='dark'] .home__brand-m {
+  color: var(--primary);
 }
 
 .home__districts {
