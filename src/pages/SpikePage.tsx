@@ -1,144 +1,133 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { takeCapturedToken } from './spikeToken';
 
 /**
- * Временная spike-страница (этап 1): проверяет, отдаёт ли Яндекс.Диск
- * файлы прямо в браузер с github.io — вся цепочка будущей синхронизации:
- * папка → загрузка файла → скачивание → сверка байтов.
+ * Временная spike-страница (этап 1): проверяет, может ли браузер писать и читать
+ * файлы в GitHub через Contents API — вся цепочка будущей синхронизации:
+ * токен → репозиторий → залить файл → прочитать → скачать байты → удалить.
+ * Яндекс.Диск уже проверен и отклонён: запись работает, чтение из браузера — нет.
  * Тестов нет, страница уходит в этапе 2. Токен живёт только в поле ввода.
  */
 
-const API = 'https://cloud-api.yandex.net/v1/disk';
-const FOLDER = 'roaMark';
-const FILE = 'roaMark/spike.txt';
+const API = 'https://api.github.com';
+const REPO = 'svetayet/roamark';
+const FILE = 'spike.txt';
 // Не-ASCII внутри — проверяем честную передачу байтов, а не только код 200.
 const PAYLOAD = 'roaMark spike: проверка связи 🌲 2026';
 
 type Status = 'pending' | 'ok' | 'fail' | 'skip';
 
+/** Строка → UTF-8 байты → base64 (так Contents API принимает содержимое). */
+function toBase64(text: string): string {
+  let binary = '';
+  new TextEncoder().encode(text).forEach((b) => (binary += String.fromCharCode(b)));
+  return btoa(binary);
+}
+
+/** base64 из ответа API (с переносами строк) → строка. */
+function fromBase64(b64: string): string {
+  const binary = atob(b64.replace(/\s+/g, ''));
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 export function SpikePage() {
   const navigate = useNavigate();
-  // Если пришли с согласия Яндекса — токен уже перехвачен из адреса.
-  const [token, setToken] = useState(() => takeCapturedToken() ?? '');
+  const [token, setToken] = useState('');
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<{ name: string; status: Status; note?: string }[]>([]);
   const [verdict, setVerdict] = useState<string | null>(null);
+
+  function mark(index: number, status: Status, note?: string) {
+    setSteps((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, status, ...(note ? { note } : {}) } : s)),
+    );
+  }
 
   async function run() {
     const value = token.trim();
     if (!value || running) return;
     const names = [
-      'папка roaMark на Диске',
-      'ссылка на загрузку',
+      'токен жив',
+      'доступ к репозиторию',
       'залить файл',
-      'ссылка на скачивание',
-      'скачать и сверить байты',
+      'прочитать файл (API)',
+      'скачать сырыми байтами',
+      'убрать за собой',
     ];
     setSteps(names.map((name) => ({ name, status: 'pending' })));
     setVerdict(null);
     setRunning(true);
-    const auth = { Authorization: `OAuth ${value}` };
+    const auth = { Authorization: `Bearer ${value}`, Accept: 'application/vnd.github+json' };
     // Какой шаг пал — решаем по счётчику, состояние React из async не читаем.
     let cursor = 0;
     try {
-      // 1. Папка: 404 — нормально, значит создадим (PUT = WebDAV MkCol).
-      let res = await fetch(`${API}/resources?path=${encodeURIComponent(FOLDER)}`, {
-        headers: auth,
-      });
-      if (res.status === 404) {
-        res = await fetch(`${API}/resources?path=${encodeURIComponent(FOLDER)}`, {
-          method: 'PUT',
-          headers: auth,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      } else if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      setSteps((prev) => prev.map((s, i) => (i === 0 ? { ...s, status: 'ok' } : s)));
+      // 1. Токен: кто я.
+      let res = await fetch(`${API}/user`, { headers: auth });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const me: { login: string } = await res.json();
+      mark(0, 'ok', `@${me.login}`);
       cursor = 1;
 
-      // 2. Ссылка на загрузку.
-      res = await fetch(
-        `${API}/resources/upload?path=${encodeURIComponent(FILE)}&overwrite=true`,
-        { headers: auth },
-      );
+      // 2. Репозиторий сайта виден токену.
+      res = await fetch(`${API}/repos/${REPO}`, { headers: auth });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { href: uploadHref }: { href: string } = await res.json();
-      setSteps((prev) => prev.map((s, i) => (i === 1 ? { ...s, status: 'ok' } : s)));
+      const repo: { private: boolean } = await res.json();
+      mark(1, 'ok', repo.private ? 'репозиторий закрытый' : 'репозиторий публичный');
       cursor = 2;
 
-      // 3. Заливаем байты по выданной ссылке (домен downloader — здесь
-      //    и решается главный вопрос CORS).
-      res = await fetch(uploadHref, { method: 'PUT', body: PAYLOAD });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setSteps((prev) => prev.map((s, i) => (i === 2 ? { ...s, status: 'ok' } : s)));
-      cursor = 3;
-
-      // 4. Ссылка на скачивание.
-      res = await fetch(`${API}/resources/download?path=${encodeURIComponent(FILE)}`, {
-        headers: auth,
+      // 3. Заливаем: если файл уже лежит (прошлый оборванный запуск),
+      //    обновление требует его sha.
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, { headers: auth });
+      let sha: string | undefined;
+      if (res.ok) {
+        const existing: { sha: string } = await res.json();
+        sha = existing.sha;
+      }
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, {
+        method: 'PUT',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'roaMark spike: проверка связи',
+          content: toBase64(PAYLOAD),
+          sha,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { href: downloadHref }: { href: string } = await res.json();
-      setSteps((prev) => prev.map((s, i) => (i === 3 ? { ...s, status: 'ok' } : s)));
+      mark(2, 'ok', sha ? 'файл обновлён' : 'файл создан');
+      cursor = 3;
+
+      // 4. Читаем через API и сверяем.
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, { headers: auth });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const file: { content: string; sha: string } = await res.json();
+      if (fromBase64(file.content) !== PAYLOAD) throw new Error('прочитанное отличается от залитого');
+      mark(3, 'ok');
       cursor = 4;
 
-      // 5. Скачиваем тем же браузером и сверяем байт-в-байт. Свежевыписанная
-      //    ссылка первые секунды отдаёт ошибку без CORS-заголовка (по логам
-      //    браузера это 403 или «Failed to fetch»), а потом «дозревает» —
-      //    та же ссылка качается свободно. Пробуем несколько раз с паузой.
-      let text: string | null = null;
-      let lastReason = '';
-      let attemptCount = 0;
-      for (let attempt = 1; attempt <= 6; attempt++) {
-        attemptCount = attempt;
-        try {
-          res = await fetch(downloadHref);
-          if (res.ok) {
-            text = new TextDecoder().decode(await res.arrayBuffer());
-            break;
-          }
-          lastReason = `HTTP ${res.status}`;
-        } catch (e) {
-          lastReason = e instanceof Error ? e.message : String(e);
-        }
-        if (attempt < 6) {
-          setSteps((prev) =>
-            prev.map((s, i) =>
-              i === 4
-                ? { ...s, note: `попытка ${attempt} не вышла (${lastReason}), ждём 5 с…` }
-                : s,
-            ),
-          );
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-        }
-      }
-      if (text === null) throw new Error(lastReason || 'скачать не удалось');
-      if (text !== PAYLOAD) throw new Error('скачанное отличается от залитого');
-      setSteps((prev) =>
-        prev.map((s, i) =>
-          i === 4
-            ? {
-                ...s,
-                status: 'ok',
-                ...(attemptCount > 1 ? { note: `получилось с попытки ${attemptCount}` } : {}),
-              }
-            : s,
-        ),
-      );
-      setVerdict('✓ Яндекс подходит для синхронизации');
+      // 5. Скачиваем сырыми байтами — так синхронизация будет забирать GPX.
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, {
+        headers: { ...auth, Accept: 'application/vnd.github.raw' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const raw = new TextDecoder().decode(await res.arrayBuffer());
+      if (raw !== PAYLOAD) throw new Error('сырые байты отличаются от залитых');
+      mark(4, 'ok');
+      cursor = 5;
+
+      // 6. Удаляем за собой — синхронизация тоже умеет удалять.
+      res = await fetch(`${API}/repos/${REPO}/contents/${FILE}`, {
+        method: 'DELETE',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'roaMark spike: уборка', sha: file.sha }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      mark(5, 'ok', 'в репозитории снова чисто');
+      setVerdict('✓ GitHub подходит для синхронизации');
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
-      setSteps((prev) =>
-        prev.map((s, i) =>
-          i === cursor
-            ? { ...s, status: 'fail', note: reason }
-            : s.status === 'pending'
-              ? { ...s, status: 'skip' }
-              : s,
-        ),
-      );
+      mark(cursor, 'fail', reason);
+      setSteps((prev) => prev.map((s) => (s.status === 'pending' ? { ...s, status: 'skip' } : s)));
       setVerdict(`✕ не пустило на шаге «${names[cursor]}»: ${reason}`);
     } finally {
       setRunning(false);
@@ -153,20 +142,21 @@ export function SpikePage() {
         <button className="link" onClick={() => navigate('/')}>
           ← все треки
         </button>
-        <h1>проверка Яндекса</h1>
+        <h1>проверка GitHub</h1>
       </header>
 
       <section className="settings__section">
         <h2>Токен</h2>
         <p className="settings__hint">
-          Вставь токен Яндекс.Диска — как его получить, написано в docs/этап-1-переезд.md.
-          Токен остаётся только на этой странице и никуда не сохраняется.
+          Вставь токен GitHub (fine-grained, только для этого репозитория) — как его получить,
+          написано в docs/этап-1-переезд.md. Токен остаётся только на этой странице и никуда не
+          сохраняется.
         </p>
         <div className="settings__new">
           <input
-            aria-label="токен Яндекс.Диска"
+            aria-label="токен GitHub"
             className="settings__new-name"
-            placeholder="y0_AgAAAA…"
+            placeholder="github_pat_…"
             value={token}
             onInput={(e) => setToken((e.target as HTMLInputElement).value)}
           />
