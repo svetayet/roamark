@@ -125,14 +125,13 @@ export async function synchronize(repo: SyncRepo, relay: SyncRelay): Promise<Syn
   let filesDown = 0;
   let missingFiles = 0;
 
-  // 2. Забрать байты треков, пришедших с облака (живых, без локального файла).
-  const localIds = new Set(local.map((r) => r.id));
-  const takenIds = new Set(
-    merged
-      .filter((r) => !localIds.has(r.id) && r.kind === 'track' && !r.deletedAt)
-      .map((r) => r.id),
-  );
-  for (const id of takenIds) {
+  // 2. Забрать байты живых треков без локального файла: пришедшие с облака
+  // и воскресшие (правка на другом устройстве новее местного надгробия —
+  // локальные байты уже стёрты). Уже учтённые как missing не задваиваются.
+  const liveTrackIds = merged
+    .filter((r) => r.kind === 'track' && !r.deletedAt)
+    .map((r) => r.id);
+  for (const id of liveTrackIds) {
     if ((await repo.getGpxBytes(id)) !== null) continue;
     try {
       const bytes = await relay.getFile(`${TRACKS}/${id}.gpx`);
@@ -159,10 +158,7 @@ export async function synchronize(repo: SyncRepo, relay: SyncRelay): Promise<Syn
     }
     if (remote.has(name)) continue;
     const bytes = await repo.getGpxBytes(record.id);
-    if (bytes === null) {
-      missingFiles += 1; // живой трек без файла ни там, ни тут
-      continue;
-    }
+    if (bytes === null) continue; // уже посчитаны в missingFiles на шаге 2
     await relay.putFile(`${TRACKS}/${name}`, bytes);
     filesUp += 1;
   }

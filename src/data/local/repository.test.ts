@@ -198,6 +198,32 @@ test('listAllRecords нормализует запись без updatedAt (бе�
   expect(record.updatedAt).toBe(track.createdAt);
 });
 
+test('база этапа 1 (версии 1, без meta-стора) переезжает на v2 без потерь', async () => {
+  const dbName = `local-repo-${(dbSeq += 1)}`;
+  await deleteDb(dbName);
+  // Руками делаем базу этапа 1: только records и gpx, записи без updatedAt.
+  const v1 = await openDb(dbName, 1, (db) => {
+    db.createObjectStore('records', { keyPath: 'id' });
+    db.createObjectStore('gpx', { keyPath: 'id' });
+  });
+  await idbPut(v1, 'records', {
+    id: 'd-old',
+    kind: 'district',
+    name: 'Хибины',
+    isPrimary: true,
+  } as never);
+  v1.close();
+
+  const repo = new LocalTrackRepository(dbName);
+  const districts = await repo.listDistricts();
+  expect(districts.map((d) => d.name)).toEqual(['Хибины']); // живой район уцелел
+  expect(districts).toHaveLength(1); // «Рядом» не добавился — живой уже есть
+  expect((await repo.listAllRecords()).map((r) => r.id)).toContain('d-old');
+  expect(await repo.getMeta('lastSyncAt')).toBeNull(); // meta-стор появился
+  await repo.setMeta('lastSyncAt', '2026-10-30T10:00:00Z');
+  expect(await repo.getMeta('lastSyncAt')).toBe('2026-10-30T10:00:00Z');
+});
+
 test('meta-стор читает и пишет', async () => {
   const { repo } = await freshRepo();
   expect(await repo.getMeta('lastSyncAt')).toBeNull();

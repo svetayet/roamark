@@ -116,6 +116,21 @@ test('облачный трек забран вместе с байтами', as
   expect(state.replaced).toBe(true);
 });
 
+test('воскресший трек (облачная правка новее надгробия) забирает байты с Диска', async () => {
+  // Трек удалён тут (байты стёрты), но отредактирован на другом устройстве
+  // раньше, чем удаление доехало в облако: правка свежее — трек вернулся.
+  const local = [district('d1'), track('t1', { name: 'надгробие', deletedAt: T(30), updatedAt: T(30) })];
+  const { repo, state } = fakeRepo(local);
+  const cloud = buildManifest(
+    [district('d1'), track('t1', { name: 'правка с телефона', updatedAt: T(35) })],
+    T(10),
+  );
+  const { relay } = fakeRelay(cloud, { 't1.gpx': new TextEncoder().encode('байты').buffer });
+  const report = await synchronize(repo, relay);
+  expect(report.missingFiles).toBe(0);
+  expect(new TextDecoder().decode(state.gpx['t1'])).toBe('байты');
+});
+
 test('конфликт дат — победило свежее, конфликт в отчёте', async () => {
   const local = [track('t1', { name: 'локальное', updatedAt: T(20) })];
   const { repo, state } = fakeRepo(local);
@@ -167,6 +182,28 @@ test('401 на manifest — SyncError token, ничего не применен�
   const err: unknown = await synchronize(repo, dead).catch((e) => e);
   expect((err as SyncError).failure).toBe('token');
   expect(state.replaced).toBe(false);
+});
+
+test('401 посреди синка (после применения) — итог применён, выкладывание не начато', async () => {
+  // Протухший токен всплывает на скачивании байтов: слияние уже применено
+  // (это валидный итог), но на Диск не выложено ничего и метка не ставилась.
+  const local = [district('d1')];
+  const cloud = buildManifest([district('d1'), track('t9')], T(10));
+  const { repo, state } = fakeRepo(local);
+  const { relay: base, calls } = fakeRelay(cloud, {});
+  const relay: SyncRelay = {
+    ...base,
+    getFile: async (path) => {
+      if (path === 'tracks/t9.gpx') throw new SyncError('token', 'Сессия Яндекса истекла.');
+      return base.getFile(path);
+    },
+  };
+  const err: unknown = await synchronize(repo, relay).catch((e) => e);
+  expect((err as SyncError).failure).toBe('token');
+  expect(state.replaced).toBe(true);
+  expect(state.records.map((r) => r.id)).toContain('t9');
+  expect(calls.filter((c) => c.startsWith('putFile'))).toHaveLength(0);
+  expect(state.meta['lastSyncAt']).toBeUndefined();
 });
 
 test('fast-path: метки равны и локальных правок нет — только чтение манифеста', async () => {

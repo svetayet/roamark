@@ -9,7 +9,7 @@ import {
 import { parseGpxSegments } from '../../logic/gpx';
 import { segmentsBounds, segmentsDistanceKm } from '../../logic/geo';
 import { buildPreview } from '../preview';
-import { idbClear, idbDelete, idbGet, idbGetAll, idbPut, openDb } from './idb';
+import { idbDelete, idbGet, idbGetAll, idbPut, idbReplaceAll, openDb } from './idb';
 
 /** Ошибка парсера — тоже RepositoryError: внешние обработчики показывают текст только у него. */
 function parseOrRepositoryError(gpxText: string) {
@@ -74,9 +74,11 @@ export class LocalTrackRepository implements TrackRepository {
 
   constructor(dbName: string = 'roamark') {
     this.db = openDb(dbName, 2, (db) => {
-      db.createObjectStore('records', { keyPath: 'id' });
-      db.createObjectStore('gpx', { keyPath: 'id' });
-      db.createObjectStore('meta', { keyPath: 'id' });
+      // База этапа 1 уже держит records и gpx — создать существующий стор
+      // нельзя (DOMException), поэтому добавляем только недостающее.
+      for (const store of ['records', 'gpx', 'meta']) {
+        if (!db.objectStoreNames.contains(store)) db.createObjectStore(store, { keyPath: 'id' });
+      }
     }).then(async (db) => {
       await this.ensureDefaultDistrict(db);
       return db;
@@ -230,13 +232,10 @@ export class LocalTrackRepository implements TrackRepository {
     return raw.map(asSyncRecord).sort((a, b) => a.id.localeCompare(b.id));
   }
 
-  /** Итог слияния записывается целиком, даты не пересчитываются. */
+  /** Итог слияния записывается целиком одной транзакцией, даты не пересчитываются. */
   async replaceRecords(records: SyncRecord[]): Promise<void> {
     const db = await this.db;
-    await idbClear(db, 'records');
-    for (const record of records) {
-      await idbPut(db, 'records', record);
-    }
+    await idbReplaceAll(db, 'records', records as { id: string }[]);
   }
 
   async getGpxBytes(id: string): Promise<ArrayBuffer | null> {

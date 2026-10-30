@@ -24,7 +24,14 @@ vi.mock('../data/sync/relay', () => ({
       return { status: 'ok', time: 't' };
     }
   },
-  SyncError: class extends Error {},
+  SyncError: class extends Error {
+    constructor(
+      public failure: 'token' | 'missing' | 'relay' | 'network' = 'token',
+      message?: string,
+    ) {
+      super(message ?? failure);
+    }
+  },
   syncErrorText: () => 'Сервер недоступен — проверь связь или адрес сервера.',
 }));
 
@@ -97,6 +104,17 @@ test('отключить забывает токен и возвращает к�
   mount();
   fireEvent.click(screen.getByRole('button', { name: 'отключить' }));
   expect(await screen.findByRole('button', { name: 'подключить Яндекс.Диск' })).toBeTruthy();
+});
+
+test('протухший токен — возвращает кнопку подключения и подсказку', async () => {
+  token.has = true;
+  const { synchronize } = await import('../data/sync/sync');
+  const { SyncError } = await import('../data/sync/relay');
+  vi.mocked(synchronize).mockRejectedValueOnce(new SyncError('token', 'Сессия истекла'));
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: 'синхронизироваться' }));
+  expect(await screen.findByRole('button', { name: 'подключить Яндекс.Диск' })).toBeTruthy();
+  expect(await screen.findByText('Сервер недоступен — проверь связь или адрес сервера.')).toBeTruthy();
 });
 
 test('адрес реле хранится в localStorage', async () => {
