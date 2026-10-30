@@ -9,7 +9,7 @@ import {
 import { parseGpxSegments } from '../../logic/gpx';
 import { segmentsBounds, segmentsDistanceKm } from '../../logic/geo';
 import { buildPreview } from '../preview';
-import { idbDelete, idbGet, idbGetAll, idbPut, openDb } from './idb';
+import { idbClear, idbDelete, idbGet, idbGetAll, idbPut, openDb } from './idb';
 
 /** Ошибка парсера — тоже RepositoryError: внешние обработчики показывают текст только у него. */
 function parseOrRepositoryError(gpxText: string) {
@@ -21,14 +21,51 @@ function parseOrRepositoryError(gpxText: string) {
 }
 
 /**
+ * Запись синхронизации: любая запись библиотеки со служебными датами —
+ * уходит в манифест целиком, включая надгробия (deletedAt не-null).
+ */
+export interface SyncRecord {
+  id: string;
+  kind: 'district' | 'track';
+  updatedAt: string;
+  deletedAt: string | null;
+  [field: string]: unknown;
+}
+
+/** Эпоха для записей базы этапа 1 — у тех нет ни updatedAt, ни createdAt. */
+const EPOCH = '1970-01-01T00:00:00.000Z';
+
+const now = () => new Date().toISOString();
+
+/** Нормализация записи при чтении: даты этапа 1 подставляются на месте. */
+function asSyncRecord(raw: Record<string, unknown>): SyncRecord {
+  return {
+    ...(raw as object),
+    id: raw.id as string,
+    kind: raw.kind as 'district' | 'track',
+    updatedAt: (raw.updatedAt as string) ?? (raw.createdAt as string) ?? EPOCH,
+    deletedAt: (raw.deletedAt as string | null) ?? null,
+  };
+}
+
+/**
  * Локальная реализация TrackRepository: все данные и GPX-файлы живут
  * в браузере (IndexedDB), чтение мгновенное и работает без сети.
  * Первый запуск на пустой базе создаёт основной район «Рядом» —
  * того же требует InMemoryTrackRepository в тестах.
+ *
+ * Даты и надгробия: каждое изменение ставит updatedAt; удаление — надгробие
+ * (deletedAt), чтобы доехало до других устройств при синхронизации.
  */
 
-type DistrictRecord = { id: string; kind: 'district' } & District;
-type TrackRecord = { id: string; kind: 'track' } & Track;
+type DistrictRecord = { id: string; kind: 'district' } & District & {
+  updatedAt: string;
+  deletedAt: string | null;
+};
+type TrackRecord = { id: string; kind: 'track' } & Track & {
+  updatedAt: string;
+  deletedAt: string | null;
+};
 /** Байты GPX хранятся как ArrayBuffer — Blob собирается при чтении. */
 type GpxRecord = { id: string; bytes: ArrayBuffer };
 
@@ -36,9 +73,10 @@ export class LocalTrackRepository implements TrackRepository {
   private readonly db: Promise<IDBDatabase>;
 
   constructor(dbName: string = 'roamark') {
-    this.db = openDb(dbName, 1, (db) => {
+    this.db = openDb(dbName, 2, (db) => {
       db.createObjectStore('records', { keyPath: 'id' });
       db.createObjectStore('gpx', { keyPath: 'id' });
+      db.createObjectStore('meta', { keyPath: 'id' });
     }).then(async (db) => {
       await this.ensureDefaultDistrict(db);
       return db;
@@ -49,7 +87,7 @@ export class LocalTrackRepository implements TrackRepository {
     const db = await this.db;
     const records = await idbGetAll<DistrictRecord>(db, 'records');
     return records
-      .filter((r) => r.kind === 'district')
+      .filter((r) => r.kind === 'district' && !r.deletedAt)
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   }
 
@@ -61,6 +99,8 @@ export class LocalTrackRepository implements TrackRepository {
       kind: 'district',
       name: name.trim(),
       isPrimary: districts.length === 0,
+      updatedAt: now(),
+      deletedAt: null,
     };
     await idbPut(db, 'records', record);
     return { id: record.id, name: record.name, isPrimary: record.isPrimary };
@@ -69,42 +109,53 @@ export class LocalTrackRepository implements TrackRepository {
   async renameDistrict(id: string, name: string): Promise<void> {
     const db = await this.db;
     const district = await this.getDistrict(db, id);
-    await idbPut(db, 'records', { ...district, name: name.trim() });
+    await idbPut(db, 'records', { ...district, name: name.trim(), updatedAt: now() });
   }
 
   async setPrimaryDistrict(id: string): Promise<void> {
     const db = await this.db;
     await this.getDistrict(db, id);
+    // Дата растёт только у избранного: снимаемые флаги — не «правка» района,
+    // иначе бывший основной станет свежее нового и спутает слияние.
     for (const d of await this.districts(db)) {
-      await idbPut(db, 'records', { ...d, isPrimary: d.id === id });
+      const becomesPrimary = d.id === id;
+      if (becomesPrimary || d.isPrimary) {
+        await idbPut(db, 'records', {
+          ...d,
+          isPrimary: becomesPrimary,
+          ...(becomesPrimary ? { updatedAt: now() } : {}),
+        });
+      }
     }
   }
 
   async deleteDistrict(id: string): Promise<void> {
     const db = await this.db;
-    await this.getDistrict(db, id);
+    const district = await this.getDistrict(db, id);
     const tracks = await idbGetAll<TrackRecord>(db, 'records');
-    const hasTracks = tracks.some((r) => r.kind === 'track' && r.districtId === id);
+    const hasTracks = tracks.some((r) => r.kind === 'track' && !r.deletedAt && r.districtId === id);
     if (hasTracks) {
       throw new RepositoryError(
         'В районе есть треки — сначала перенесите их в другой район.',
       );
     }
-    await idbDelete(db, 'records', id);
+    await idbPut(db, 'records', { ...district, updatedAt: now(), deletedAt: now() });
   }
 
   async listTracks(districtId: string): Promise<Track[]> {
     const db = await this.db;
     const records = await idbGetAll<TrackRecord>(db, 'records');
     return records
-      .filter((r) => r.kind === 'track' && r.districtId === districtId)
+      .filter((r) => r.kind === 'track' && !r.deletedAt && r.districtId === districtId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async getTrack(id: string): Promise<Track> {
     const db = await this.db;
     const record = await idbGet<TrackRecord>(db, 'records', id);
-    if (!record || record.kind !== 'track') throw new RepositoryError('Трек не найден.');
+    if (!record || record.kind !== 'track' || record.deletedAt) {
+      throw new RepositoryError('Трек не найден.');
+    }
     return record;
   }
 
@@ -114,6 +165,7 @@ export class LocalTrackRepository implements TrackRepository {
     const gpxText = await file.text();
     const segments = parseOrRepositoryError(gpxText);
     const id = crypto.randomUUID();
+    const createdAt = now();
     const record: TrackRecord = {
       id,
       kind: 'track',
@@ -126,7 +178,9 @@ export class LocalTrackRepository implements TrackRepository {
       storagePath: `${id}.gpx`,
       bounds: segmentsBounds(segments),
       previewSegments: buildPreview(segments, PREVIEW_MAX_POINTS),
-      createdAt: new Date().toISOString(),
+      createdAt,
+      updatedAt: createdAt,
+      deletedAt: null,
     };
     await idbPut(db, 'gpx', {
       id,
@@ -146,13 +200,15 @@ export class LocalTrackRepository implements TrackRepository {
       category: meta.category,
       name: meta.name.trim(),
       description: meta.description?.trim() || null,
+      updatedAt: now(),
     });
   }
 
   async deleteTrack(id: string): Promise<void> {
     const db = await this.db;
-    await this.getTrackRecord(db, id);
-    await idbDelete(db, 'records', id);
+    const record = await this.getTrackRecord(db, id);
+    // Надгробие вместо стирания: удаление должно доехать до других устройств.
+    await idbPut(db, 'records', { ...record, updatedAt: now(), deletedAt: now() });
     await idbDelete(db, 'gpx', id);
   }
 
@@ -164,6 +220,43 @@ export class LocalTrackRepository implements TrackRepository {
   async getDownloadUrl(id: string): Promise<string> {
     const gpx = await this.getGpx(id);
     return URL.createObjectURL(await this.asBlob(gpx));
+  }
+
+  // —– синхронизация: доступ к сырым записям, байтам и meta ——
+
+  async listAllRecords(): Promise<SyncRecord[]> {
+    const db = await this.db;
+    const raw = await idbGetAll<Record<string, unknown>>(db, 'records');
+    return raw.map(asSyncRecord).sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /** Итог слияния записывается целиком, даты не пересчитываются. */
+  async replaceRecords(records: SyncRecord[]): Promise<void> {
+    const db = await this.db;
+    await idbClear(db, 'records');
+    for (const record of records) {
+      await idbPut(db, 'records', record);
+    }
+  }
+
+  async getGpxBytes(id: string): Promise<ArrayBuffer | null> {
+    const db = await this.db;
+    return (await idbGet<GpxRecord>(db, 'gpx', id))?.bytes ?? null;
+  }
+
+  async putGpxBytes(id: string, bytes: ArrayBuffer): Promise<void> {
+    const db = await this.db;
+    await idbPut(db, 'gpx', { id, bytes } satisfies GpxRecord);
+  }
+
+  async getMeta<T>(key: string): Promise<T | null> {
+    const db = await this.db;
+    return ((await idbGet<{ id: string; value: T }>(db, 'meta', key))?.value ?? null) as T | null;
+  }
+
+  async setMeta(key: string, value: unknown): Promise<void> {
+    const db = await this.db;
+    await idbPut(db, 'meta', { id: key, value });
   }
 
   private async asBlob(gpx: GpxRecord): Promise<Blob> {
@@ -179,19 +272,24 @@ export class LocalTrackRepository implements TrackRepository {
 
   private async getTrackRecord(db: IDBDatabase, id: string): Promise<TrackRecord> {
     const record = await idbGet<TrackRecord>(db, 'records', id);
-    if (!record || record.kind !== 'track') throw new RepositoryError('Трек не найден.');
+    if (!record || record.kind !== 'track' || record.deletedAt) {
+      throw new RepositoryError('Трек не найден.');
+    }
     return record;
   }
 
   private async getDistrict(db: IDBDatabase, id: string): Promise<DistrictRecord> {
     const record = await idbGet<DistrictRecord>(db, 'records', id);
-    if (!record || record.kind !== 'district') throw new RepositoryError('Район не найден.');
+    if (!record || record.kind !== 'district' || record.deletedAt) {
+      throw new RepositoryError('Район не найден.');
+    }
     return record;
   }
 
+  /** Только живые районы. */
   private async districts(db: IDBDatabase): Promise<DistrictRecord[]> {
     const records = await idbGetAll<DistrictRecord>(db, 'records');
-    return records.filter((r) => r.kind === 'district');
+    return records.filter((r) => r.kind === 'district' && !r.deletedAt);
   }
 
   /** Пустая база первого запуска получает основной район «Рядом». */
@@ -202,6 +300,8 @@ export class LocalTrackRepository implements TrackRepository {
         kind: 'district',
         name: 'Рядом',
         isPrimary: true,
+        updatedAt: now(),
+        deletedAt: null,
       } satisfies DistrictRecord);
     }
   }

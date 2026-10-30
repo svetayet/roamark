@@ -65,3 +65,9 @@ export function idbDelete(db: IDBDatabase, store: string, key: string): Promise<
   tx.objectStore(store).delete(key);
   return done(tx);
 }
+
+export function idbClear(db: IDBDatabase, store: string): Promise<void> {
+  const tx = db.transaction(store, 'readwrite');
+  tx.objectStore(store).clear();
+  return done(tx);
+}

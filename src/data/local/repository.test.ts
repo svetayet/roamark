@@ -1,4 +1,4 @@
-import { deleteDb } from './idb';
+import { deleteDb, idbPut, openDb } from './idb';
 import { LocalTrackRepository } from './repository';
 import { RepositoryError } from '../repository';
 
@@ -144,4 +144,98 @@ test('updateTrackMeta меняет мета, deleteTrack убирает трек
   await repo.deleteTrack(track.id);
   await expect(repo.getTrack(track.id)).rejects.toThrow('Трек не найден');
   await expect(repo.deleteTrack(track.id)).rejects.toThrow('Трек не найден');
+});
+
+test('удалённый трек исчезает из списков, но живёт в listAllRecords как надгробие', async () => {
+  const { repo } = await freshRepo();
+  const home = (await repo.listDistricts())[0];
+  const track = await repo.addTrack(gpxFile(), {
+    districtId: home.id,
+    category: 'hike',
+    name: 'Кольцо Падуна',
+  });
+  await repo.deleteTrack(track.id);
+  expect(await repo.listTracks(home.id)).toHaveLength(0);
+  const graves = (await repo.listAllRecords()).filter((r) => r.id === track.id);
+  expect(graves).toHaveLength(1);
+  expect(graves[0].deletedAt).not.toBeNull();
+  // байты надгробия стёрты сразу
+  expect(await repo.getGpxBytes(track.id)).toBeNull();
+});
+
+test('updateTrackMeta обновляет updatedAt', async () => {
+  const { repo } = await freshRepo();
+  const home = (await repo.listDistricts())[0];
+  const track = await repo.addTrack(gpxFile(), {
+    districtId: home.id,
+    category: 'hike',
+    name: 'Имя',
+  });
+  const before = (await repo.listAllRecords()).find((r) => r.id === track.id)!.updatedAt;
+  await new Promise((r) => setTimeout(r, 5)); // даты с разницей, не одна и та же миллисекунда
+  await repo.updateTrackMeta(track.id, { districtId: home.id, category: 'hike', name: 'Имя2' });
+  const after = (await repo.listAllRecords()).find((r) => r.id === track.id)!.updatedAt;
+  expect(Date.parse(after)).toBeGreaterThan(Date.parse(before));
+});
+
+test('listAllRecords нормализует запись без updatedAt (берёт createdAt)', async () => {
+  const { dbName, repo } = await freshRepo();
+  const home = (await repo.listDistricts())[0];
+  const track = await repo.addTrack(gpxFile(), {
+    districtId: home.id,
+    category: 'hike',
+    name: 'Старая база',
+  });
+  // База этапа 1: записи без updatedAt. Подкладываем такую же руками.
+  const db = await openDb(dbName, 2, () => {});
+  await idbPut(db, 'records', {
+    id: track.id,
+    kind: 'track',
+    createdAt: track.createdAt,
+  } as never);
+  db.close();
+  const record = (await repo.listAllRecords()).find((r) => r.id === track.id)!;
+  expect(record.updatedAt).toBe(track.createdAt);
+});
+
+test('meta-стор читает и пишет', async () => {
+  const { repo } = await freshRepo();
+  expect(await repo.getMeta('lastSyncAt')).toBeNull();
+  await repo.setMeta('lastSyncAt', '2026-10-30T10:00:00Z');
+  expect(await repo.getMeta('lastSyncAt')).toBe('2026-10-30T10:00:00Z');
+});
+
+test('replaceRecords переписывает набор записей целиком', async () => {
+  const { repo } = await freshRepo();
+  const home = (await repo.listDistricts())[0];
+  await repo.addTrack(gpxFile(), {
+    districtId: home.id,
+    category: 'hike',
+    name: 'Локальный',
+  });
+  const cloud = [
+    { id: 'd1', kind: 'district', name: 'Из облака', isPrimary: true, updatedAt: '2026-10-30T09:00:00Z', deletedAt: null },
+    { id: 't1', kind: 'track', districtId: 'd1', name: 'Трек из облака', updatedAt: '2026-10-30T09:00:00Z', deletedAt: null },
+  ];
+  await repo.replaceRecords(cloud as never);
+  const all = await repo.listAllRecords();
+  expect(all.map((r) => r.id).sort()).toEqual(['d1', 't1']);
+  expect((await repo.listDistricts()).map((d) => d.name)).toEqual(['Из облака']);
+});
+
+test('надгробие пустого района', async () => {
+  const { repo } = await freshRepo();
+  const far = await repo.createDistrict('Далеко');
+  await repo.deleteDistrict(far.id);
+  expect((await repo.listDistricts()).map((d) => d.id)).not.toContain(far.id);
+  const grave = (await repo.listAllRecords()).find((r) => r.id === far.id);
+  expect(grave?.deletedAt).not.toBeNull();
+});
+
+test('putGpxBytes/getGpxBytes — байты туда и обратно', async () => {
+  const { repo } = await freshRepo();
+  const bytes = new TextEncoder().encode('лес 🌲').buffer;
+  await repo.putGpxBytes('x1', bytes);
+  const back = await repo.getGpxBytes('x1');
+  expect(new TextDecoder().decode(back!)).toBe('лес 🌲');
 });
