@@ -47,7 +47,7 @@ function fakeRepo(records: SyncRecord[], gpx: Record<string, ArrayBuffer> = {}) 
     putGpxBytes: async (id, bytes) => {
       state.gpx[id] = bytes;
     },
-    getMeta: async (key) => (state.meta[key] ?? null) as string | null,
+    getMeta: async <T>(key: string) => (state.meta[key] ?? null) as T | null,
     setMeta: async (key, value) => {
       state.meta[key] = value;
     },

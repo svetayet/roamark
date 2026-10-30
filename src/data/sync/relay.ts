@@ -44,7 +44,7 @@ export class RelayClient {
 
   async health(): Promise<{ status: string; time: string }> {
     const r = await this.request('GET', '/v1/health', { withToken: false });
-    return this.json(r);
+    return (await this.json(r)) as { status: string; time: string };
   }
 
   async listFiles(prefix: string): Promise<FileInfo[]> {

@@ -22,7 +22,7 @@ test('health проходит без токена', async () => {
 
 test('listFiles маппит files и шлёт Bearer-токен', async () => {
   let seenAuth = '';
-  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     seenAuth = (init?.headers as Record<string, string>)['Authorization'] ?? '';
     return new Response(JSON.stringify({ files: [{ name: 'a.gpx', size: 1, modified: 'm' }] }), { status: 200 });
   }) as typeof fetch;

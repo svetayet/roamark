@@ -4,6 +4,7 @@ import { useRepo } from '../data/RepoContext';
 import { RepositoryError, type District } from '../data/repository';
 import { orderDistricts } from '../logic/districts';
 import { useTheme, type ThemePref } from '../theme/theme';
+import { SyncSection } from './SyncSection';
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'светлая' },
@@ -118,6 +119,8 @@ export function SettingsPage() {
           ))}
         </div>
       </section>
+
+      <SyncSection />
 
       <section className="settings__section">
         <h2>Районы</h2>
