@@ -5,7 +5,6 @@ import { HomePage } from './pages/HomePage';
 import { AddTrackPage } from './pages/AddTrackPage';
 import { TrackPage } from './pages/TrackPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { SpikePage } from './pages/SpikePage';
 
 export default function App() {
   return (
@@ -19,8 +18,6 @@ export default function App() {
               <Route path="/add" element={<AddTrackPage />} />
               <Route path="/add/:trackId" element={<AddTrackPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              {/* Временная страница этапа 1 — проверка GitHub для синхронизации. */}
-              <Route path="/spike" element={<SpikePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>

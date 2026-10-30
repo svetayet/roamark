@@ -27,6 +27,7 @@ function parseOrRepositoryError(gpxText: string) {
 export class InMemoryTrackRepository implements TrackRepository {
   private districts = new Map<string, District>();
   private tracks = new Map<string, Track & { gpxText: string }>();
+  private meta = new Map<string, unknown>();
 
   constructor() {
     this.ensureBootstrap();
@@ -127,6 +128,15 @@ export class InMemoryTrackRepository implements TrackRepository {
   async getDownloadUrl(id: string): Promise<string> {
     const text = this.getTrackInternal(id).gpxText;
     return `data:application/gpx+xml;charset=utf-8,${encodeURIComponent(text)}`;
+  }
+
+  /** Метки синхронизации (lastSyncAt) — паритет с LocalTrackRepository. */
+  async getMeta<T>(key: string): Promise<T | null> {
+    return (this.meta.get(key) ?? null) as T | null;
+  }
+
+  async setMeta(key: string, value: unknown): Promise<void> {
+    this.meta.set(key, value);
   }
 
   private ensureBootstrap(): void {

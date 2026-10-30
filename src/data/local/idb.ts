@@ -65,3 +65,19 @@ export function idbDelete(db: IDBDatabase, store: string, key: string): Promise<
   tx.objectStore(store).delete(key);
   return done(tx);
 }
+
+/**
+ * Очистка и запись набора одной транзакцией: выгрузка вкладки посередине
+ * абортирует всё вместе, стор не остаётся пустым или частичным.
+ */
+export function idbReplaceAll<T extends { id: string }>(
+  db: IDBDatabase,
+  store: string,
+  values: T[],
+): Promise<void> {
+  const tx = db.transaction(store, 'readwrite');
+  const os = tx.objectStore(store);
+  os.clear();
+  for (const value of values) os.put(value);
+  return done(tx);
+}
