@@ -8,6 +8,7 @@ import { formatKm } from '../logic/format';
 import { MapView } from '../map/MapView';
 import { ActivityIcon, CATEGORY_LABELS } from '../components/ActivityIcon';
 import { AppHeader } from '../components/AppHeader';
+import { PencilIcon, TrashIcon } from '../components/icons';
 
 /** Страница трека: общая шапка, большая карта, метаданные и главная кнопка — скачать GPX. */
 export function TrackPage() {
@@ -77,7 +78,37 @@ export function TrackPage() {
         <MapView segments={segments} />
       </div>
       <div className="track-meta">
-        <h1 className="track-meta__name">{track.name}</h1>
+        <div className="track-meta__head">
+          <h1 className="track-meta__name">{track.name}</h1>
+          <span className="track-meta__tools">
+            <button
+              className="icon-btn"
+              aria-label="изменить"
+              title="изменить"
+              onClick={() => navigate(`/add/${track.id}`)}
+            >
+              <PencilIcon />
+            </button>
+            <button
+              className="icon-btn icon-btn--danger"
+              aria-label="удалить"
+              title="удалить"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <TrashIcon />
+            </button>
+          </span>
+        </div>
+        {confirmingDelete && (
+          <div className="track-meta__actions">
+            <button className="btn btn--danger" onClick={() => void remove()}>
+              точно удалить?
+            </button>
+            <button className="btn" onClick={() => setConfirmingDelete(false)}>
+              отмена
+            </button>
+          </div>
+        )}
         <p className="track-meta__row">
           <ActivityIcon category={track.category} />
           <span>{CATEGORY_LABELS[track.category]}</span>
@@ -103,25 +134,6 @@ export function TrackPage() {
             Скачать GPX
           </a>
         )}
-        <div className="track-meta__actions">
-          <button className="btn" onClick={() => navigate(`/add/${track.id}`)}>
-            изменить
-          </button>
-          {confirmingDelete ? (
-            <>
-              <button className="btn btn--danger" onClick={() => void remove()}>
-                точно удалить?
-              </button>
-              <button className="btn" onClick={() => setConfirmingDelete(false)}>
-                отмена
-              </button>
-            </>
-          ) : (
-            <button className="btn btn--danger" onClick={() => setConfirmingDelete(true)}>
-              удалить
-            </button>
-          )}
-        </div>
         {deleteError && <p className="form-errors">{deleteError}</p>}
       </div>
     </div>

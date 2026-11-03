@@ -5,6 +5,7 @@ import { orderDistricts } from '../logic/districts';
 import { useTheme, type ThemePref } from '../theme/theme';
 import { SyncSection } from './SyncSection';
 import { AppHeader } from '../components/AppHeader';
+import { PencilIcon, StarIcon, TrashIcon } from '../components/icons';
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'светлая' },
@@ -160,29 +161,39 @@ export function SettingsPage() {
                       {d.isPrimary ? '★ ' : ''}
                       {d.name}
                     </span>
-                    {!d.isPrimary && (
-                      <button className="link" disabled={busy} onClick={() => makePrimary(d.id)}>
-                        сделать основным
-                      </button>
-                    )}
-                    <button
-                      className="link"
-                      disabled={busy}
-                      onClick={() => setEditing({ id: d.id, draft: d.name })}
-                    >
-                      переименовать
-                    </button>
-                    {nonEmpty.has(d.id) ? (
-                      <span className="settings__district-note">в нём треки — сначала удали их</span>
-                    ) : (
+                    <span className="settings__district-actions">
+                      {!d.isPrimary && (
+                        <button
+                          className="icon-btn"
+                          aria-label="сделать основным"
+                          title="сделать основным"
+                          disabled={busy}
+                          onClick={() => makePrimary(d.id)}
+                        >
+                          <StarIcon />
+                        </button>
+                      )}
                       <button
-                        className="link link--danger"
+                        className="icon-btn"
+                        aria-label="переименовать"
+                        title="переименовать"
                         disabled={busy}
+                        onClick={() => setEditing({ id: d.id, draft: d.name })}
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        className="icon-btn icon-btn--danger"
+                        aria-label="удалить"
+                        title={
+                          nonEmpty.has(d.id) ? 'в районе есть треки — сначала удали их' : 'удалить'
+                        }
+                        disabled={busy || nonEmpty.has(d.id)}
                         onClick={() => remove(d.id)}
                       >
-                        удалить
+                        <TrashIcon />
                       </button>
-                    )}
+                    </span>
                   </>
                 )}
               </li>

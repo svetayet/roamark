@@ -488,6 +488,55 @@ button {
   color: #e57368;
 }
 
+/* Иконные кнопки-действия: настройки (районы) и страница трека */
+.icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--bg);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.icon-btn svg {
+  display: block;
+}
+
+.icon-btn:not(:disabled):hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Недоступное действие — серый значок (например, корзина у непустого района) */
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.icon-btn--danger {
+  color: #c0392b;
+}
+
+[data-theme='dark'] .icon-btn--danger {
+  color: #e57368;
+}
+
+.icon-btn--danger:not(:disabled):hover {
+  color: #c0392b;
+  border-color: #c0392b;
+}
+
+[data-theme='dark'] .icon-btn--danger:not(:disabled):hover {
+  color: #e57368;
+  border-color: #e57368;
+}
+
 /* Страница трека */
 .page--track {
   padding: 0;
@@ -508,9 +557,23 @@ button {
   gap: 10px;
 }
 
+.track-meta__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .track-meta__name {
   margin: 0;
   font-size: 20px;
+  flex: 1;
+  min-width: 0;
+}
+
+.track-meta__tools {
+  flex: none;
+  display: flex;
+  gap: 6px;
 }
 
 .track-meta__row {
@@ -577,6 +640,11 @@ button {
   min-width: 120px;
 }
 
+.settings__district-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .settings__rename {
   flex: 1;
   min-width: 120px;
@@ -615,11 +683,6 @@ button {
 
 .settings__hint {
   margin: 8px 0 0;
-  color: var(--text-dim);
-  font-size: 14px;
-}
-
-.settings__district-note {
   color: var(--text-dim);
   font-size: 14px;
 }

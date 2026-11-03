@@ -83,12 +83,17 @@ test('районы: основной помечен ⌂; «сделать осн
   });
 });
 
-test('пустой район удаляется; непустой защищён отсутствием кнопки', async () => {
+test('корзина: у непустого района серая и недоступна; пустой район удаляется', async () => {
   const { repo, far } = await setup();
   renderSettings(repo);
   await screen.findByText('Рядом', { exact: false });
   expect(await repo.listDistricts()).toHaveLength(2);
-  rowOf('Далеко').getByRole('button', { name: /удалить/ }).click();
+  // Подсказки-текста больше нет: вместо неё корзина, серая у непустого района
+  const busyDelete = rowOf('Рядом').getByRole('button', {
+    name: 'удалить',
+  }) as HTMLButtonElement;
+  await waitFor(() => expect(busyDelete.disabled).toBe(true));
+  rowOf('Далеко').getByRole('button', { name: 'удалить' }).click();
   await waitFor(async () => {
     const list = await repo.listDistricts();
     expect(list.some((d) => d.id === far.id)).toBe(false);
@@ -201,12 +206,13 @@ test('пока район удаляется, действия в списке �
   });
 });
 
-test('непустой район: кнопки «удалить» нет, вместо неё подсказка; пустой удаляется', async () => {
+test('непустой район: корзина заблокирована после подсчёта треков; пустой — кликабельна', async () => {
   const { repo } = await setup();
   renderSettings(repo);
   await screen.findByText('Далеко');
-  // Подсказка приходит после подсчёта треков — ждём её, потом проверяем отсутствие кнопки.
-  expect(await rowOf('Рядом').findByText(/в нём треки/)).toBeTruthy();
-  expect(rowOf('Рядом').queryByRole('button', { name: 'удалить' })).toBeNull();
-  expect(rowOf('Далеко').getByRole('button', { name: 'удалить' })).toBeTruthy();
+  // Пока треки не посчитаны, корзина активна; у непустого района она блокируется
+  const full = rowOf('Рядом').getByRole('button', { name: 'удалить' }) as HTMLButtonElement;
+  await waitFor(() => expect(full.disabled).toBe(true));
+  const empty = rowOf('Далеко').getByRole('button', { name: 'удалить' }) as HTMLButtonElement;
+  expect(empty.disabled).toBe(false);
 });
