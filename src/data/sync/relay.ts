@@ -39,7 +39,9 @@ export class RelayClient {
   constructor(
     private readonly baseUrl: string,
     private readonly token: string,
-    private readonly fetchImpl: typeof fetch = fetch,
+    // Привязка обязательна: вызов «this.fetchImpl(...)» отрывает браузерный
+    // fetch от окна, и тот кидает Illegal invocation ещё до выхода в сеть.
+    private readonly fetchImpl: typeof fetch = fetch.bind(globalThis),
   ) {}
 
   async health(): Promise<{ status: string; time: string }> {

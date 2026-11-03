@@ -120,6 +120,7 @@ export function SyncSection() {
           <div className="settings__new">
             <input
               aria-label="адрес сервера синхронизации"
+              name="relay-url"
               className="settings__new-name"
               placeholder="https://api.домен"
               value={relayUrl}

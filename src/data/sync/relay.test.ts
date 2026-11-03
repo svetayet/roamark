@@ -62,6 +62,26 @@ test('сетевой отказ → failure network', async () => {
   await expect(relay.listFiles('tracks')).rejects.toMatchObject({ failure: 'network' });
 });
 
+test('дефолтный fetch вызывается методом и не падает Illegal invocation', async () => {
+  // Настоящий браузерный fetch требует получателем окно — вызов его
+  // «через объект» кидает TypeError ещё до сети (в Network пусто).
+  // Подменяем глобальный fetch строгой проверкой получателя.
+  const real = globalThis.fetch;
+  const strict = function (this: unknown, _input: RequestInfo | URL): Promise<Response> {
+    if (this !== globalThis) return Promise.reject(new TypeError('Illegal invocation'));
+    return Promise.resolve(
+      new Response(JSON.stringify(OK_HEALTH), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+  };
+  globalThis.fetch = strict as typeof fetch;
+  try {
+    const relay = new RelayClient('https://relay', ''); // дефолтный fetchImpl
+    await expect(relay.health()).resolves.toEqual(OK_HEALTH);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
 test('putFile отправляет байты и Authorization', async () => {
   let seen: { auth?: string; body?: ArrayBuffer } = {};
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
