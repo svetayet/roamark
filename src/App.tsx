@@ -1,6 +1,7 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { RepoProvider } from './data/RepoContext';
 import { ThemeProvider } from './theme/theme';
+import { SyncResume } from './components/SyncResume';
 import { HomePage } from './pages/HomePage';
 import { AddTrackPage } from './pages/AddTrackPage';
 import { TrackPage } from './pages/TrackPage';
@@ -11,6 +12,8 @@ export default function App() {
     <ThemeProvider>
       <RepoProvider>
         <HashRouter>
+          {/* Автопродолжение синхронизации после возврата с oauth.yandex.ru */}
+          <SyncResume />
           <div className="app">
             <Routes>
               <Route path="/" element={<HomePage />} />

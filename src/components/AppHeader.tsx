@@ -1,14 +1,42 @@
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Brand } from './Brand';
 import { useScrolled } from './useScrolled';
+import { SyncIcon } from './icons';
+import { useRepo } from '../data/RepoContext';
+import type { SyncRepo } from '../data/sync/sync';
+import { defaultRelayUrl, getRunnerState, startSync, subscribeRunner } from '../data/sync/runner';
+import { isConnected } from '../data/sync/token';
 
 /**
  * Общая шапка всех страниц: кликабельный логотип (на главную), кнопка
- * синхронизации (пока заглушка), добавление трека и настройки.
+ * синхронизации (общий с настройками движок runner.ts — без отчёта
+ * «сколько куда», тот только в настройках; пока идёт — иконка крутится),
+ * добавление трека и настройки.
  */
 export function AppHeader() {
   const navigate = useNavigate();
   const scrolled = useScrolled();
+  const repo = useRepo() as unknown as SyncRepo;
+  const runner = useSyncExternalStore(subscribeRunner, getRunnerState);
+  const [hint, setHint] = useState<string | null>(null);
+
+  // Неудачный шапочный запуск мелькает подсказкой у шапки: молчаливый провал хуже видимой ошибки.
+  useEffect(() => {
+    if (!runner.error || runner.lastOrigin !== 'header') return;
+    setHint(runner.error);
+    const timer = setTimeout(() => setHint(null), 4000);
+    return () => clearTimeout(timer);
+  }, [runner.error, runner.lastOrigin]);
+
+  const sync = () => {
+    if (!isConnected()) {
+      navigate('/settings');
+      return;
+    }
+    void startSync('header', repo, defaultRelayUrl());
+  };
+
   return (
     <header className={`app-header${scrolled ? ' app-header--lined' : ''}`}>
       <button
@@ -40,23 +68,14 @@ export function AppHeader() {
           <path d="M5 12h14" />
         </svg>
       </button>
-      <button className="app-header__btn" aria-label="Синхронизация" title="Синхронизация">
-        <svg
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-          <path d="M3 21v-5h5" />
-        </svg>
+      <button
+        className={`app-header__btn${runner.busy ? ' app-header__btn--busy' : ''}`}
+        onClick={sync}
+        aria-label="Синхронизация"
+        title="Синхронизация"
+        disabled={runner.busy}
+      >
+        <SyncIcon />
       </button>
       <button
         className="app-header__btn"
@@ -79,6 +98,11 @@ export function AppHeader() {
           <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
         </svg>
       </button>
+      {hint && (
+        <div className="app-header__hint" role="status">
+          {hint}
+        </div>
+      )}
     </header>
   );
 }

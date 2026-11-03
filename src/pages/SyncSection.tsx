@@ -1,23 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRepo } from '../data/RepoContext';
-import { RelayClient, SyncError, syncErrorText } from '../data/sync/relay';
-import { synchronize, type SyncRepo } from '../data/sync/sync';
-import { buildAuthUrl, clearToken, getToken, hasToken } from '../data/sync/token';
+import { RelayClient, syncErrorText } from '../data/sync/relay';
+import type { SyncRepo } from '../data/sync/sync';
+import {
+  RELAY_URL_KEY,
+  clearOutcome,
+  defaultRelayUrl,
+  getRunnerState,
+  startConnect,
+  startSync,
+  subscribeRunner,
+} from '../data/sync/runner';
+import { disconnect, isConnected } from '../data/sync/token';
+import { SyncIcon } from '../components/icons';
 
 /**
- * Раздел «Синхронизация»: подключение Яндекс.Диска (OAuth, токен только
- * в памяти вкладки), одна кнопка «синхронизироваться», метка последней
- * синхронизации и «проверить связь» (та самая кнопка после покупки хостинга).
- * Адрес реле — не секрет: хранится в localStorage, дефолт из ENV сборки.
+ * Раздел «Синхронизация»: подключение Яндекс.Диска, одна кнопка
+ * «синхронизироваться», метка последней синхронизации и «проверить связь».
+ * Сам запуск — общий с шапкой движок runner.ts: токен в память вкладки
+ * приносится тихим заходом на oauth при каждом запуске, в localStorage
+ * живёт только факт подключения. Адрес реле — не секрет: localStorage,
+ * дефолт из ENV сборки.
  */
 
-const RELAY_URL_KEY = 'roamark.relayUrl';
 const LAST_SYNC = 'lastSyncAt';
-
-function loadRelayUrl(): string {
-  const envUrl = import.meta.env.VITE_RELAY_URL ?? '';
-  return localStorage.getItem(RELAY_URL_KEY) ?? envUrl;
-}
 
 function humanTime(iso: string): string {
   const date = new Date(iso);
@@ -28,28 +34,28 @@ function humanTime(iso: string): string {
 
 export function SyncSection() {
   const repo = useRepo() as unknown as SyncRepo;
-  const [connected, setConnected] = useState(hasToken());
-  const [relayUrl, setRelayUrl] = useState(loadRelayUrl);
-  const [busy, setBusy] = useState(false);
+  const runner = useSyncExternalStore(subscribeRunner, getRunnerState);
+  const [connected, setConnected] = useState(isConnected);
+  const [relayUrl, setRelayUrl] = useState(defaultRelayUrl);
   const [checking, setChecking] = useState(false);
-  const [summary, setSummary] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
 
+  // Метка последней синхронизации: на монтировании и после каждой завершённой синхронизации.
   useEffect(() => {
+    if (runner.busy) return;
     void repo.getMeta<string>(LAST_SYNC).then(setLastSync);
-  }, [repo]);
-
-  const relay = () => new RelayClient(relayUrl.replace(/\/+$/, ''), getToken() ?? '');
+  }, [repo, runner.busy]);
 
   const connect = () => {
-    window.location.href = buildAuthUrl();
+    // Маркер «настройки ждут» + тихий уход на oauth; после возврата runner продолжит.
+    startConnect();
   };
 
-  const disconnect = () => {
-    clearToken();
+  const disconnectAll = () => {
+    disconnect();
+    clearOutcome();
     setConnected(false);
-    setSummary(null);
     setHint(null);
   };
 
@@ -57,28 +63,12 @@ export function SyncSection() {
     setHint(null);
     setChecking(true);
     try {
-      await relay().health();
+      await new RelayClient(relayUrl.replace(/\/+$/, ''), '').health();
       setHint('сервер жив');
     } catch (e) {
       setHint(syncErrorText(e));
     } finally {
       setChecking(false);
-    }
-  };
-
-  const run = async () => {
-    if (busy) return;
-    setBusy(true);
-    setHint(null);
-    try {
-      const report = await synchronize(repo, relay());
-      setSummary(report.summary());
-      setLastSync(await repo.getMeta<string>(LAST_SYNC));
-    } catch (e) {
-      setHint(syncErrorText(e));
-      if (e instanceof SyncError && e.failure === 'token') setConnected(false);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -107,7 +97,7 @@ export function SyncSection() {
           <ul className="settings__districts">
             <li className="settings__district">
               <span className="settings__district-name">Яндекс.Диск · подключено</span>
-              <button className="link link--danger" onClick={disconnect}>
+              <button className="link link--danger" onClick={disconnectAll}>
                 отключить
               </button>
             </li>
@@ -131,8 +121,13 @@ export function SyncSection() {
             Адрес сервера уже вписан — менять не нужно.
           </p>
           <div className="settings__new">
-            <button className="btn" onClick={() => void run()} disabled={busy}>
-              {busy ? 'синхронизируем…' : 'синхронизироваться'}
+            <button className="btn" onClick={() => startSync('settings', repo, relayUrl)} disabled={runner.busy}>
+              {runner.busy && (
+                <span className="btn__spinner" aria-hidden="true">
+                  <SyncIcon size={14} />
+                </span>
+              )}
+              {runner.busy ? 'синхронизируем…' : 'синхронизироваться'}
             </button>
             <button className="link" onClick={() => void check()} disabled={checking}>
               {checking ? 'проверяем…' : 'проверить связь'}
@@ -141,7 +136,8 @@ export function SyncSection() {
         </>
       )}
 
-      {summary && <p className="settings__hint">{summary}</p>}
+      {runner.report && <p className="settings__hint">{runner.report}</p>}
+      {runner.error && <p className="settings__hint">{runner.error}</p>}
       {hint && <p className="settings__hint">{hint}</p>}
     </section>
   );

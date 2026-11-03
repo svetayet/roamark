@@ -5,11 +5,16 @@
  * поэтому captureTokenFromLocation() вызывается в main.tsx до рендера.
  * В localStorage и любую историю токен не попадает никогда
  * (принцип владелицы: «хранить токен в данных браузера не безопасно вообще»).
+ *
+ * В localStorage лежит только ФАКТ подключения (roamark.yaConnected) —
+ * не токен. По нему новая вкладка знает «Диск подключён», а токен
+ * запрашивается заново тихим заходом на oauth.yandex.ru при синхронизации.
  */
 
 export const YA_CLIENT_ID = '4be515d1418c48c0bb50fbd1424bd63e';
 const REDIRECT_URI = 'https://svetayet.github.io/roamark/';
 const SCOPE = 'cloud_api:disk.app_folder';
+const CONNECTED_KEY = 'roamark.yaConnected';
 
 /** Куда вести кнопку «подключить Яндекс.Диск». */
 export function buildAuthUrl(): string {
@@ -29,19 +34,37 @@ export function captureTokenFromLocation(): void {
   const match = window.location.hash.match(/access_token=([^&]+)/);
   if (match) {
     token = decodeURIComponent(match[1]);
+    // Запомнить факт подключения; сам токен — только в памяти, как выше.
+    try {
+      localStorage.setItem(CONNECTED_KEY, '1');
+    } catch {
+      /* приватный режим: флаг — удобство, без него просто чаще спросим токен */
+    }
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }
 }
 
-export function hasToken(): boolean {
-  return token !== null;
+/** Подключён ли Диск на этом устройстве: токен в памяти или флаг прошлого подключения. */
+export function isConnected(): boolean {
+  let flagged = false;
+  try {
+    flagged = localStorage.getItem(CONNECTED_KEY) === '1';
+  } catch {
+    /* нет доступа к стореджу — считаем только живой токен */
+  }
+  return token !== null || flagged;
 }
 
 export function getToken(): string | null {
   return token;
 }
 
-/** «Отключить» в настройках: токен забывается до следующего подключения. */
-export function clearToken(): void {
+/** «Отключить» в настройках: забыть и токен, и факт подключения. */
+export function disconnect(): void {
   token = null;
+  try {
+    localStorage.removeItem(CONNECTED_KEY);
+  } catch {
+    /* не критично: без стореджа флаг и так не читается */
+  }
 }

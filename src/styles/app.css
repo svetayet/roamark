@@ -686,3 +686,46 @@ button {
   color: var(--text-dim);
   font-size: 14px;
 }
+
+/* Кнопка синхронизации в шапке: пока синхронизация идёт, иконка крутится */
+.app-header__btn--busy svg {
+  animation: roamark-spin 0.9s linear infinite;
+}
+
+@keyframes roamark-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Спиннер в кнопке «синхронизируем…» в настройках */
+.btn__spinner {
+  display: inline-flex;
+  margin-right: 8px;
+}
+
+.btn__spinner svg {
+  animation: roamark-spin 0.9s linear infinite;
+}
+
+/* Подсказка о неудачной синхронизации из шапки — строка под шапкой */
+.app-header__hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border-bottom: 1px solid var(--card-border);
+}
+
+/* Кто просил меньше анимаций — иконка просто стоит на месте */
+@media (prefers-reduced-motion: reduce) {
+  .app-header__btn--busy svg,
+  .btn__spinner svg {
+    animation: none;
+  }
+}
+
