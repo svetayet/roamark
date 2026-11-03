@@ -127,7 +127,7 @@ export function SyncSection() {
             />
           </div>
           <p className="settings__hint">
-            Адрес подставится сам после покупки домена — менять не нужно.
+            Адрес сервера уже вписан — менять не нужно.
           </p>
           <div className="settings__new">
             <button className="btn" onClick={() => void run()} disabled={busy}>
