@@ -19,13 +19,7 @@ vi.mock('../data/sync/token', () => ({
 }));
 
 vi.mock('../data/sync/relay', () => ({
-  RelayClient: class {
-    constructor(public baseUrl: string) {}
-    async health() {
-      if (this.baseUrl === 'https://bad') throw new Error('нет сети');
-      return { status: 'ok', time: 't' };
-    }
-  },
+  RelayClient: class {},
   SyncError: class extends Error {
     constructor(
       public failure: 'token' | 'missing' | 'relay' | 'network' = 'token',
@@ -88,30 +82,31 @@ test('не подключено — кнопка «подключить Янде
   expect(sessionStorage.getItem('roamark.syncPending')).toBe('settings');
 });
 
-test('подключено по флагу даже без токена — статус и кнопка синхронизации на месте', () => {
+test('подключено по флагу даже без токена — статус и значок синхронизации на месте', () => {
   token.connected = true;
   mount();
   expect(screen.getByText('Яндекс.Диск · подключено')).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'синхронизироваться' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'синхронизировать' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'подключить Яндекс.Диск' })).toBeNull();
+  expect(screen.queryByLabelText('адрес сервера синхронизации')).toBeNull();
 });
 
-test('с токеном — «синхронизироваться» вызывает synchronize и показывает сводку', async () => {
+test('значок с токеном запускает synchronize и показывает сводку «сколько куда»', async () => {
   token.has = true;
   const { synchronize } = await import('../data/sync/sync');
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'синхронизироваться' }));
+  fireEvent.click(screen.getByRole('button', { name: 'синхронизировать' }));
   await waitFor(() => expect(synchronize).toHaveBeenCalledTimes(1));
   expect(await screen.findByText(/синхронизировано/)).toBeTruthy();
   expect(screen.getByText(/забрано 1, выложено 2/)).toBeTruthy();
 });
 
-test('без токена, но с флагом клик уводит на oauth, не запуская синхронизацию', async () => {
+test('без токена, но с флагом значок уводит на oauth, не запуская синхронизацию', async () => {
   fakeLocation();
   token.connected = true;
   const { synchronize } = await import('../data/sync/sync');
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'синхронизироваться' }));
+  fireEvent.click(screen.getByRole('button', { name: 'синхронизировать' }));
   expect(window.location.href).toBe(AUTH_URL);
   expect(sessionStorage.getItem('roamark.syncPending')).toBe('settings');
   expect(synchronize).not.toHaveBeenCalled();
@@ -123,13 +118,6 @@ test('последняя синхронизация отображается и�
   await waitFor(() =>
     expect(screen.getByText(/последняя синхронизация:/).textContent).toMatch('30.10.2026'),
   );
-});
-
-test('проверить связь — сервер жив', async () => {
-  token.has = true;
-  mount();
-  fireEvent.click(screen.getByRole('button', { name: 'проверить связь' }));
-  expect(await screen.findByText('сервер жив')).toBeTruthy();
 });
 
 test('отключить забывает подключение и возвращает кнопку', async () => {
@@ -146,7 +134,7 @@ test('срыв сессии — тихий уход на oauth, подключе
   const { SyncError } = await import('../data/sync/relay');
   vi.mocked(synchronize).mockRejectedValueOnce(new SyncError('token', 'Сессия истекла'));
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'синхронизироваться' }));
+  fireEvent.click(screen.getByRole('button', { name: 'синхронизировать' }));
   await waitFor(() => expect(window.location.href).toBe(AUTH_URL));
   expect(sessionStorage.getItem('roamark.syncPending')).toBe('settings');
   expect(screen.getByText('Яндекс.Диск · подключено')).toBeTruthy();
@@ -158,12 +146,12 @@ test('ошибка сети — подсказка с текстом, подкл
   const { SyncError } = await import('../data/sync/relay');
   vi.mocked(synchronize).mockRejectedValueOnce(new SyncError('network', 'нет сети'));
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'синхронизироваться' }));
+  fireEvent.click(screen.getByRole('button', { name: 'синхронизировать' }));
   expect(await screen.findByText('ошибка: network')).toBeTruthy();
   expect(screen.getByText('Яндекс.Диск · подключено')).toBeTruthy();
 });
 
-test('пока синхронизация идёт — кнопка занята и выключена', async () => {
+test('пока синхронизация идёт — значок занят, выключен и крутится', async () => {
   token.has = true;
   const { synchronize } = await import('../data/sync/sync');
   let finish!: () => void;
@@ -174,21 +162,14 @@ test('пока синхронизация идёт — кнопка занята
       }),
   );
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'синхронизироваться' }));
-  const busyBtn = await screen.findByRole('button', { name: 'синхронизируем…' });
+  fireEvent.click(screen.getByRole('button', { name: 'синхронизировать' }));
+  const busyBtn = await screen.findByRole('button', { name: 'синхронизировать' });
   expect((busyBtn as HTMLButtonElement).disabled).toBe(true);
+  expect(busyBtn.className).toContain('app-header__btn--busy');
   finish();
-  await waitFor(() =>
-    expect(
-      (screen.getByRole('button', { name: 'синхронизироваться' }) as HTMLButtonElement).disabled,
-    ).toBe(false),
-  );
-});
-
-test('адрес реле хранится в localStorage', () => {
-  token.has = true;
-  mount();
-  const input = screen.getByLabelText('адрес сервера синхронизации') as HTMLInputElement;
-  fireEvent.input(input, { target: { value: 'https://api.example.ru' } });
-  expect(localStorage.getItem('roamark.relayUrl')).toBe('https://api.example.ru');
+  await waitFor(() => {
+    const btn = screen.getByRole('button', { name: 'синхронизировать' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.className).not.toContain('app-header__btn--busy');
+  });
 });
