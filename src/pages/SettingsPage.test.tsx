@@ -74,14 +74,10 @@ test('районы: основной помечен ⌂; «сделать осн
   });
 });
 
-test('удаление района с треками: подсказка, список не меняется; пустой — удаляется', async () => {
+test('пустой район удаляется; непустой защищён отсутствием кнопки', async () => {
   const { repo, far } = await setup();
   renderSettings(repo);
   await screen.findByText('Рядом', { exact: false });
-  rowOf('Рядом').getByRole('button', { name: /удалить/ }).click();
-  await waitFor(() =>
-    expect(screen.getByText(/в районе есть треки/i)).toBeTruthy(),
-  );
   expect(await repo.listDistricts()).toHaveLength(2);
   rowOf('Далеко').getByRole('button', { name: /удалить/ }).click();
   await waitFor(async () => {
@@ -194,4 +190,14 @@ test('пока район удаляется, действия в списке �
     const del = rowOf('Далеко').getByRole('button', { name: /удалить/ }) as HTMLButtonElement;
     expect(del.disabled).toBe(false);
   });
+});
+
+test('непустой район: кнопки «удалить» нет, вместо неё подсказка; пустой удаляется', async () => {
+  const { repo } = await setup();
+  renderSettings(repo);
+  await screen.findByText('Далеко');
+  // Подсказка приходит после подсчёта треков — ждём её, потом проверяем отсутствие кнопки.
+  expect(await rowOf('Рядом').findByText(/в нём треки/)).toBeTruthy();
+  expect(rowOf('Рядом').queryByRole('button', { name: 'удалить' })).toBeNull();
+  expect(rowOf('Далеко').getByRole('button', { name: 'удалить' })).toBeTruthy();
 });

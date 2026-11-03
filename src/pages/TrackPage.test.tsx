@@ -66,38 +66,49 @@ test('«изменить» ведёт на /add/:id', async () => {
   await waitFor(() => expect(screen.getByTestId('add-edit')).toBeTruthy());
 });
 
-test('«удалить» с подтверждением: deleteTrack и возврат домой', async () => {
+test('«удалить» — два шага: первый клик ничего не удаляет', async () => {
+  // window.confirm в PWA на телефоне молча возвращает «отмена» —
+  // подтверждение только кнопками, браузерные диалоги не используем.
   const { repo, track } = await makeRepo();
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
   const deleteSpy = vi.spyOn(repo, 'deleteTrack');
   renderAt(repo, track.id);
   await screen.findByText('Кольцо Падуна');
-  screen.getByRole('button', { name: /удалить/ }).click();
+  screen.getByRole('button', { name: 'удалить' }).click();
+  expect(await screen.findByRole('button', { name: 'точно удалить?' })).toBeTruthy();
+  expect(deleteSpy).not.toHaveBeenCalled();
+  await expect(repo.getTrack(track.id)).resolves.toBeTruthy();
+});
+
+test('второй шаг «точно удалить?» удаляет и возвращает домой', async () => {
+  const { repo, track } = await makeRepo();
+  const deleteSpy = vi.spyOn(repo, 'deleteTrack');
+  renderAt(repo, track.id);
+  await screen.findByText('Кольцо Падуна');
+  screen.getByRole('button', { name: 'удалить' }).click();
+  (await screen.findByRole('button', { name: 'точно удалить?' })).click();
   await waitFor(() => expect(screen.getByTestId('home-page')).toBeTruthy());
   expect(deleteSpy).toHaveBeenCalledWith(track.id);
   await expect(repo.getTrack(track.id)).rejects.toBeTruthy();
-  confirm.mockRestore();
 });
 
-test('«удалить» без подтверждения ничего не делает', async () => {
+test('«отмена» возвращает обычную кнопку, ничего не удаляет', async () => {
   const { repo, track } = await makeRepo();
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   const deleteSpy = vi.spyOn(repo, 'deleteTrack');
   renderAt(repo, track.id);
   await screen.findByText('Кольцо Падуна');
-  screen.getByRole('button', { name: /удалить/ }).click();
-  await expect(repo.getTrack(track.id)).resolves.toBeTruthy();
+  screen.getByRole('button', { name: 'удалить' }).click();
+  (await screen.findByRole('button', { name: 'отмена' })).click();
+  expect(await screen.findByRole('button', { name: 'удалить' })).toBeTruthy();
   expect(deleteSpy).not.toHaveBeenCalled();
-  confirm.mockRestore();
 });
 
 test('неудачное удаление: сообщение, остаёмся на странице трека', async () => {
   const { repo, track } = await makeRepo();
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   vi.spyOn(repo, 'deleteTrack').mockRejectedValueOnce(new Error('offline'));
   renderAt(repo, track.id);
   await screen.findByText('Кольцо Падуна');
-  screen.getByRole('button', { name: /удалить/ }).click();
+  screen.getByRole('button', { name: 'удалить' }).click();
+  (await screen.findByRole('button', { name: 'точно удалить?' })).click();
   expect(await screen.findByText('Не получилось удалить. Попробуй ещё раз.')).toBeTruthy();
   expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
 });

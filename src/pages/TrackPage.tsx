@@ -19,6 +19,9 @@ export function TrackPage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Подтверждение удаления — только кнопками: window.confirm в PWA
+  // на телефоне молча подавляется и удаление тихо срывается.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,13 +59,13 @@ export function TrackPage() {
   if (!track) return null;
 
   const remove = async () => {
-    if (!window.confirm('Удалить трек? GPX-файл тоже исчезнет.')) return;
     setDeleteError(null);
     try {
       await repo.deleteTrack(track.id);
       navigate('/');
     } catch {
       setDeleteError('Не получилось удалить. Попробуй ещё раз.');
+      setConfirmingDelete(false);
     }
   };
 
@@ -107,9 +110,20 @@ export function TrackPage() {
           <button className="btn" onClick={() => navigate(`/add/${track.id}`)}>
             изменить
           </button>
-          <button className="btn btn--danger" onClick={remove}>
-            удалить
-          </button>
+          {confirmingDelete ? (
+            <>
+              <button className="btn btn--danger" onClick={() => void remove()}>
+                точно удалить?
+              </button>
+              <button className="btn" onClick={() => setConfirmingDelete(false)}>
+                отмена
+              </button>
+            </>
+          ) : (
+            <button className="btn btn--danger" onClick={() => setConfirmingDelete(true)}>
+              удалить
+            </button>
+          )}
         </div>
         {deleteError && <p className="form-errors">{deleteError}</p>}
       </div>

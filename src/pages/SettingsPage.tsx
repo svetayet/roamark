@@ -24,6 +24,9 @@ export function SettingsPage() {
   const { pref, setPref } = useTheme();
   const navigate = useNavigate();
   const [districts, setDistricts] = useState<District[]>([]);
+  // Районы, в которых есть треки: удаление запрещено репозиторием,
+  // поэтому кнопки у них нет сразу — без «молчаливого» отказа (телефон).
+  const [nonEmpty, setNonEmpty] = useState<Set<string>>(new Set());
   const [hint, setHint] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
   const [newName, setNewName] = useState('');
@@ -31,7 +34,14 @@ export function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  const reload = () => repo.listDistricts().then(setDistricts);
+  const reload = async () => {
+    const list = await repo.listDistricts();
+    setDistricts(list);
+    const filled = await Promise.all(
+      list.map(async (d) => [(await repo.listTracks(d.id)).length > 0, d.id] as const),
+    );
+    setNonEmpty(new Set(filled.filter(([has]) => has).map(([, id]) => id)));
+  };
   useEffect(() => {
     void reload();
   }, [repo]);
@@ -165,13 +175,17 @@ export function SettingsPage() {
                   >
                     переименовать
                   </button>
-                  <button
-                    className="link link--danger"
-                    disabled={busy}
-                    onClick={() => remove(d.id)}
-                  >
-                    удалить
-                  </button>
+                  {nonEmpty.has(d.id) ? (
+                    <span className="settings__district-note">в нём треки — сначала удали их</span>
+                  ) : (
+                    <button
+                      className="link link--danger"
+                      disabled={busy}
+                      onClick={() => remove(d.id)}
+                    >
+                      удалить
+                    </button>
+                  )}
                 </>
               )}
             </li>
