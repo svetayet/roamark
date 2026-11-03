@@ -7,8 +7,9 @@ import { parseGpxSegments } from '../logic/gpx';
 import { formatKm } from '../logic/format';
 import { MapView } from '../map/MapView';
 import { ActivityIcon, CATEGORY_LABELS } from '../components/ActivityIcon';
+import { AppHeader } from '../components/AppHeader';
 
-/** Страница трека: большая карта сверху, метаданные и главная кнопка — скачать GPX. */
+/** Страница трека: общая шапка, большая карта, метаданные и главная кнопка — скачать GPX. */
 export function TrackPage() {
   const { id } = useParams();
   const repo = useRepo();
@@ -71,13 +72,9 @@ export function TrackPage() {
 
   return (
     <div className="page page--track">
+      <AppHeader />
       <div className="track-map">
         <MapView segments={segments} />
-      </div>
-      <div className="page__header">
-        <button className="link" onClick={() => navigate('/')}>
-          ← все треки
-        </button>
       </div>
       <div className="track-meta">
         <h1 className="track-meta__name">{track.name}</h1>

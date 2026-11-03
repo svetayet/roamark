@@ -7,6 +7,8 @@
   --card-border: #dfe7e2;
   --text: #1f2925;
   --text-dim: #66766f;
+  /* Высота общей шапки: 12px отступа + 40px кнопка + 12px отступа */
+  --header-h: 64px;
 }
 
 [data-theme='dark'] {

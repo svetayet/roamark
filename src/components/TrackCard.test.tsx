@@ -38,13 +38,18 @@ function renderCard(track: Track, onClick: (id: string) => void, repo: TrackRepo
   );
 }
 
-test('карточка: значок активности и километры в строке названия, описание под ним', async () => {
+test('карточка: значок и название в строке, километры под кнопкой скачивания, описание ниже', async () => {
   const { track, repo } = await makeTrack();
   renderCard(track, vi.fn(), repo);
-  const title = screen.getByText('12,4 км').closest('.track-card__title');
+  const title = screen.getByText('Кольцо Падуна').closest('.track-card__title');
   expect(title).toBeTruthy();
-  expect(title).toContainElement(screen.getByText('Кольцо Падуна'));
   expect(title).toContainElement(title!.querySelector('svg'));
+  // Километраж больше не мешает названию — он в правой колонке
+  expect(title!.textContent).not.toContain('12,4');
+  const link = await screen.findByRole('link', { name: 'скачать GPX' });
+  const side = link.closest('.track-card__side');
+  expect(side).toBeTruthy();
+  expect(side).toContainElement(screen.getByText('12,4 км'));
   const desc = screen.getByText('любимая покатушка выходного дня');
   expect(desc.classList.contains('track-card__desc')).toBe(true);
   expect(screen.getByTestId('mini-map')).toBeTruthy();

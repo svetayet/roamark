@@ -1,14 +1,14 @@
 /** Знак приложения: изумрудная плитка с горей и тропой, рядом «roaMark» с мятной M. */
 export function Brand() {
   return (
-    <span className="home__brand">
+    <span className="brand">
       <svg
         width="32"
         height="32"
         viewBox="0 0 40 40"
         fill="none"
         aria-hidden="true"
-        className="home__brand-tile"
+        className="brand-tile"
       >
         <rect x="1.5" y="1.5" width="37" height="37" rx="10" fill="#0f6b51" />
         <path
@@ -28,8 +28,8 @@ export function Brand() {
           strokeDasharray="0.4 3.4"
         />
       </svg>
-      <span className="home__brand-word">
-        roa<span className="home__brand-m">M</span>ark
+      <span className="brand-word">
+        roa<span className="brand-m">M</span>ark
       </span>
     </span>
   );

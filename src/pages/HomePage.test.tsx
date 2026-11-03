@@ -35,6 +35,7 @@ function renderAt(repo: InstanceType<typeof InMemoryTrackRepository>) {
           <Route path="/" element={<HomePage />} />
           <Route path="/track/:id" element={<div data-testid="track-page" />} />
           <Route path="/add" element={<div data-testid="add-page" />} />
+          <Route path="/settings" element={<div data-testid="settings-page" />} />
         </Routes>
       </MemoryRouter>
     </RepoProvider>,
@@ -73,11 +74,23 @@ test('внизу списка — атрибуция карт (мини-карт
 test('шапка: знак-логотип — плитка с горой, roaMark с мятной M', async () => {
   const { repo } = await repoWithTrack();
   const { container } = renderAt(repo);
-  const brand = container.querySelector('.home__brand');
+  const brand = container.querySelector('.brand');
   expect(brand).toBeTruthy();
   expect(brand!.querySelector('svg')).toBeTruthy();
   expect(brand!.textContent).toBe('roaMark');
-  expect(brand!.querySelector('.home__brand-m')?.textContent).toBe('M');
+  expect(brand!.querySelector('.brand-m')?.textContent).toBe('M');
+});
+
+test('шапка: районы второй строкой, справа синхронизация-заглушка, добавление и настройки', async () => {
+  const { repo } = await repoWithTrack();
+  renderAt(repo);
+  const select = await screen.findByRole('combobox');
+  expect(select.closest('.home__districtbar')).toBeTruthy();
+  // Синхронизация пока ничего не делает — клик никуда не уводит
+  screen.getByRole('button', { name: 'Синхронизация' }).click();
+  expect(screen.queryByTestId('settings-page')).toBeNull();
+  screen.getByRole('button', { name: 'Добавить трек' }).click();
+  await waitFor(() => expect(screen.getByTestId('add-page')).toBeTruthy());
 });
 
 test('селект районов: первым основной со звёздочкой, затем остальные', async () => {

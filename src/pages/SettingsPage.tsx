@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useRepo } from '../data/RepoContext';
 import { RepositoryError, type District } from '../data/repository';
 import { orderDistricts } from '../logic/districts';
 import { useTheme, type ThemePref } from '../theme/theme';
 import { SyncSection } from './SyncSection';
+import { AppHeader } from '../components/AppHeader';
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'светлая' },
@@ -22,7 +22,6 @@ function hintOf(e: unknown): string {
 export function SettingsPage() {
   const repo = useRepo();
   const { pref, setPref } = useTheme();
-  const navigate = useNavigate();
   const [districts, setDistricts] = useState<District[]>([]);
   // Районы, в которых есть треки: удаление запрещено репозиторием,
   // поэтому кнопки у них нет сразу — без «молчаливого» отказа (телефон).
@@ -106,12 +105,8 @@ export function SettingsPage() {
 
   return (
     <div className="page">
-      <header className="page__header">
-        <button className="link" onClick={() => navigate('/')}>
-          ← все треки
-        </button>
-        <h1>настройки</h1>
-      </header>
+      <AppHeader />
+      <h1 className="page__title">настройки</h1>
 
       <section className="settings__section">
         <h2>Тема</h2>

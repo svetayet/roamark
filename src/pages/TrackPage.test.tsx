@@ -66,6 +66,16 @@ test('«изменить» ведёт на /add/:id', async () => {
   await waitFor(() => expect(screen.getByTestId('add-edit')).toBeTruthy());
 });
 
+test('шапка: логотип и кнопки на месте, клик по логотипу возвращает на главную', async () => {
+  const { repo, track } = await makeRepo();
+  renderAt(repo, track.id);
+  await screen.findByText('Кольцо Падуна');
+  expect(screen.getByRole('button', { name: 'Синхронизация' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Настройки' })).toBeTruthy();
+  screen.getByRole('button', { name: 'roaMark — на главную' }).click();
+  await waitFor(() => expect(screen.getByTestId('home-page')).toBeTruthy());
+});
+
 test('«удалить» — два шага: первый клик ничего не удаляет', async () => {
   // window.confirm в PWA на телефоне молча возвращает «отмена» —
   // подтверждение только кнопками, браузерные диалоги не используем.

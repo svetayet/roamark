@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useRepo } from '../data/RepoContext';
 import type { District, Track } from '../data/repository';
 import { TrackCard } from '../components/TrackCard';
-import { Brand } from '../components/Brand';
+import { AppHeader } from '../components/AppHeader';
 import { orderDistricts } from '../logic/districts';
 import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
 
-/** Главная: шапка с селектом районов, кнопка «+», список треков основного экрана. */
+/** Главная: общая шапка, строка районов во всю ширину под ней, список треков. */
 export function HomePage() {
   const repo = useRepo();
   const navigate = useNavigate();
@@ -77,8 +77,8 @@ export function HomePage() {
 
   return (
     <div className="home">
-      <header className="home__header">
-        <Brand />
+      <AppHeader />
+      <div className="home__districtbar">
         <select
           className="home__districts"
           value={selectedId ?? ''}
@@ -92,30 +92,7 @@ export function HomePage() {
             </option>
           ))}
         </select>
-        <button className="home__add" onClick={() => navigate('/add')} aria-label="Добавить трек">
-          +
-        </button>
-        <button
-          className="home__settings"
-          onClick={() => navigate('/settings')}
-          aria-label="Настройки"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
-          </svg>
-        </button>
-      </header>
+      </div>
       {failed ? (
         <div className="home__empty">
           <p>не получилось загрузить</p>

@@ -46,6 +46,15 @@ const rowOf = (name: string) => {
   return within(el as HTMLElement);
 };
 
+test('шапка: логотип и кнопки на месте, клик по логотипу возвращает на главную', async () => {
+  const { repo } = await setup();
+  renderSettings(repo);
+  await screen.findByText('Рядом', { exact: false });
+  expect(screen.getByRole('button', { name: 'Синхронизация' })).toBeTruthy();
+  screen.getByRole('button', { name: 'roaMark — на главную' }).click();
+  await waitFor(() => expect(screen.getByTestId('home-page')).toBeTruthy());
+});
+
 test('тема: три радио, текущая отмечена, выбор меняет pref', async () => {
   const { repo } = await setup();
   renderSettings(repo);
