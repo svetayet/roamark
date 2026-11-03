@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Brand } from './Brand';
+import { useScrolled } from './useScrolled';
 
 /**
  * Общая шапка всех страниц: кликабельный логотип (на главную), кнопка
@@ -7,8 +8,9 @@ import { Brand } from './Brand';
  */
 export function AppHeader() {
   const navigate = useNavigate();
+  const scrolled = useScrolled();
   return (
-    <header className="app-header">
+    <header className={`app-header${scrolled ? ' app-header--lined' : ''}`}>
       <button
         className="app-header__brand"
         onClick={() => navigate('/')}

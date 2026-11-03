@@ -4,11 +4,13 @@ import { useRepo } from '../data/RepoContext';
 import type { District, Track } from '../data/repository';
 import { TrackCard } from '../components/TrackCard';
 import { AppHeader } from '../components/AppHeader';
+import { useScrolled } from '../components/useScrolled';
 import { orderDistricts } from '../logic/districts';
 import { readSelectedDistrict, writeSelectedDistrict } from './sessionDistrict';
 
 /** Главная: общая шапка, строка районов во всю ширину под ней, список треков. */
 export function HomePage() {
+  const scrolled = useScrolled();
   const repo = useRepo();
   const navigate = useNavigate();
   const [districts, setDistricts] = useState<District[]>([]);
@@ -78,7 +80,7 @@ export function HomePage() {
   return (
     <div className="home">
       <AppHeader />
-      <div className="home__districtbar">
+      <div className={`home__districtbar${scrolled ? ' home__districtbar--lined' : ''}`}>
         <select
           className="home__districts"
           value={selectedId ?? ''}

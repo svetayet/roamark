@@ -104,105 +104,108 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="page">
+    <>
+      {/* Шапка вне .page: у страницы паддинг 16px, он сдвинул бы шапку относительно главной */}
       <AppHeader />
-      <h1 className="page__title">настройки</h1>
+      <div className="page">
+        <h1 className="page__title">настройки</h1>
 
-      <section className="settings__section">
-        <h2>Тема</h2>
-        <div className="field__radios">
-          {THEME_OPTIONS.map((t) => (
-            <label key={t.value} className="radio">
-              <input
-                type="radio"
-                name="theme"
-                checked={pref === t.value}
-                onChange={() => setPref(t.value)}
-              />
-              <span>{t.label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
+        <section className="settings__section">
+          <h2>Тема</h2>
+          <div className="field__radios">
+            {THEME_OPTIONS.map((t) => (
+              <label key={t.value} className="radio">
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={pref === t.value}
+                  onChange={() => setPref(t.value)}
+                />
+                <span>{t.label}</span>
+              </label>
+            ))}
+          </div>
+        </section>
 
-      <SyncSection />
+        <SyncSection />
 
-      <section className="settings__section">
-        <h2>Районы</h2>
-        <ul className="settings__districts">
-          {orderDistricts(districts).map((d) => (
-            <li key={d.id} className="settings__district">
-              {editing?.id === d.id ? (
-                <>
-                  <input
-                    aria-label="имя района"
-                    className="settings__rename"
-                    value={editing.draft}
-                    onInput={(e) =>
-                      setEditing({
-                        id: d.id,
-                        draft: (e.target as HTMLInputElement).value,
-                      })
-                    }
-                  />
-                  <button className="btn" onClick={() => rename(d.id)}>
-                    готово
-                  </button>
-                  <button className="btn" onClick={() => setEditing(null)}>
-                    ✕
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="settings__district-name">
-                    {d.isPrimary ? '★ ' : ''}
-                    {d.name}
-                  </span>
-                  {!d.isPrimary && (
-                    <button className="link" disabled={busy} onClick={() => makePrimary(d.id)}>
-                      сделать основным
+        <section className="settings__section">
+          <h2>Районы</h2>
+          <ul className="settings__districts">
+            {orderDistricts(districts).map((d) => (
+              <li key={d.id} className="settings__district">
+                {editing?.id === d.id ? (
+                  <>
+                    <input
+                      aria-label="имя района"
+                      className="settings__rename"
+                      value={editing.draft}
+                      onInput={(e) =>
+                        setEditing({
+                          id: d.id,
+                          draft: (e.target as HTMLInputElement).value,
+                        })
+                      }
+                    />
+                    <button className="btn" onClick={() => rename(d.id)}>
+                      готово
                     </button>
-                  )}
-                  <button
-                    className="link"
-                    disabled={busy}
-                    onClick={() => setEditing({ id: d.id, draft: d.name })}
-                  >
-                    переименовать
-                  </button>
-                  {nonEmpty.has(d.id) ? (
-                    <span className="settings__district-note">в нём треки — сначала удали их</span>
-                  ) : (
+                    <button className="btn" onClick={() => setEditing(null)}>
+                      ✕
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="settings__district-name">
+                      {d.isPrimary ? '★ ' : ''}
+                      {d.name}
+                    </span>
+                    {!d.isPrimary && (
+                      <button className="link" disabled={busy} onClick={() => makePrimary(d.id)}>
+                        сделать основным
+                      </button>
+                    )}
                     <button
-                      className="link link--danger"
+                      className="link"
                       disabled={busy}
-                      onClick={() => remove(d.id)}
+                      onClick={() => setEditing({ id: d.id, draft: d.name })}
                     >
-                      удалить
+                      переименовать
                     </button>
-                  )}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="settings__new">
-          <input
-            aria-label="имя нового района"
-            className="settings__new-name"
-            placeholder="новый район"
-            value={newName}
-            onInput={(e) => setNewName((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void create();
-            }}
-          />
-          <button className="btn" onClick={create} disabled={busy || !newName.trim()}>
-            {creating ? 'добавляем…' : 'добавить'}
-          </button>
-        </div>
-        {hint && <p className="settings__hint">{hint}</p>}
-      </section>
-    </div>
+                    {nonEmpty.has(d.id) ? (
+                      <span className="settings__district-note">в нём треки — сначала удали их</span>
+                    ) : (
+                      <button
+                        className="link link--danger"
+                        disabled={busy}
+                        onClick={() => remove(d.id)}
+                      >
+                        удалить
+                      </button>
+                    )}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="settings__new">
+            <input
+              aria-label="имя нового района"
+              className="settings__new-name"
+              placeholder="новый район"
+              value={newName}
+              onInput={(e) => setNewName((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void create();
+              }}
+            />
+            <button className="btn" onClick={create} disabled={busy || !newName.trim()}>
+              {creating ? 'добавляем…' : 'добавить'}
+            </button>
+          </div>
+          {hint && <p className="settings__hint">{hint}</p>}
+        </section>
+      </div>
+    </>
   );
 }
