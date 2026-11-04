@@ -22,6 +22,10 @@ export function TrackPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
+  // GPX, готовый к Web Share: читается заранее, чтобы по клику отдать файл
+  // в navigator.share без единого await — иначе гаснет пользовательский
+  // жест и Android отвечает NotAllowedError: Permission denied.
+  const [gpxFile, setGpxFile] = useState<File | null>(null);
   // Подтверждение удаления — только кнопками: window.confirm в PWA
   // на телефоне молча подавляется и удаление тихо срывается.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -43,6 +47,16 @@ export function TrackPage() {
       })
       .catch((e) => {
         if (live) setError(e instanceof RepositoryError ? e.message : 'Трек не найден.');
+      });
+    // Отдельно от основного чтения: неудача не роняет страницу —
+    // просто не появится кнопка «Поделиться».
+    repo
+      .getGpxFile(id)
+      .then((f) => {
+        if (live) setGpxFile(f);
+      })
+      .catch(() => {
+        if (live) setGpxFile(null);
       });
     return () => {
       live = false;
@@ -82,19 +96,22 @@ export function TrackPage() {
     }
   };
 
-  const share = async () => {
+  const share = () => {
     setShareError(null);
-    try {
-      const file = await repo.getGpxFile(track.id);
-      await navigator.share?.({ files: [file], title: track.name });
-    } catch (e) {
-      // Отказ пользователя в системной шторке — нормальный исход, не ошибка.
-      if (e instanceof DOMException && e.name === 'AbortError') return;
-      // Причина падения на телефоне ещё не установлена — показываем настоящую
-      // ошибку (тип и текст), по ней найдём причину.
-      const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-      setShareError(`Не получилось поделиться: ${detail}`);
-    }
+    if (!track || !gpxFile) return;
+    // navigator.share вызывается строго синхронно в обработчике клика:
+    // любой await в пути нажатия гасит transient activation, и Android
+    // отвергает шаринг с NotAllowedError: Permission denied.
+    navigator.share
+      ?.({ files: [gpxFile], title: track.name })
+      .catch((e) => {
+        // Отказ пользователя в системной шторке — нормальный исход, не ошибка.
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+        // Тип и текст настоящей ошибки показываем: телефоны ведут себя
+        // по-разному, без подробности причину не найти.
+        const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        setShareError(`Не получилось поделиться: ${detail}`);
+      });
   };
 
   return (
@@ -162,8 +179,8 @@ export function TrackPage() {
                 Скачать GPX
               </a>
             )}
-            {shareSupported && (
-              <button className="btn btn--big" onClick={() => void share()}>
+            {shareSupported && gpxFile && (
+              <button className="btn btn--big" onClick={() => share()}>
                 Поделиться
               </button>
             )}

@@ -179,13 +179,20 @@ test('ошибка шеринга показывает подробность и
   expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
 });
 
-test('ошибка чтения GPX тоже показывает подробность', async () => {
+test('пока GPX не прочитан, кнопки «Поделиться» нет', async () => {
+  stubShare(() => Promise.resolve());
+  const { repo, track } = await makeRepo();
+  vi.spyOn(repo, 'getGpxFile').mockReturnValueOnce(new Promise(() => {}));
+  renderAt(repo, track.id);
+  await screen.findByText('Кольцо Падуна');
+  expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
+});
+
+test('если GPX не удалось прочитать, кнопки «Поделиться» нет', async () => {
   stubShare(() => Promise.resolve());
   const { repo, track } = await makeRepo();
   vi.spyOn(repo, 'getGpxFile').mockRejectedValueOnce(new Error('нет байтов'));
   renderAt(repo, track.id);
-  (await screen.findByRole('button', { name: 'Поделиться' })).click();
-  expect(
-    await screen.findByText('Не получилось поделиться: Error: нет байтов'),
-  ).toBeTruthy();
+  await screen.findByText('Кольцо Падуна');
+  expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
 });
