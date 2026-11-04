@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Диагностика «Поделиться» — roaMark</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 480px; }
+  button { display: block; width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; }
+  pre { background: #f2f2f2; padding: 8px; white-space: pre-wrap; word-break: break-all; font-size: 13px; min-height: 48px; }
+  h1 { font-size: 20px; }
+</style>
+</head>
+<body>
+<h1>Диагностика Web Share</h1>
+<p id="env"></p>
+<button id="b1">1. Поделиться текстом (без файла)</button>
+<button id="b2">2. Поделиться файлом test.gpx (ASCII)</button>
+<button id="b3">3. Поделиться «проверка трека.gpx» (кириллица)</button>
+<button id="b4">4. Поделиться «проверка 😎.gpx» (эмодзи)</button>
+<pre id="out"></pre>
+<script>
+  var out = document.getElementById('out');
+  function log(s) { out.textContent = s + '\n' + out.textContent; }
+  log('UA: ' + navigator.userAgent);
+  try {
+    document.getElementById('env').textContent = 'canShare файлы: ' +
+      navigator.canShare({ files: [new File(['x'], 't.gpx', { type: 'application/gpx+xml' })] });
+  } catch (e) {
+    document.getElementById('env').textContent = 'canShare: ошибка ' + e;
+  }
+  var GPX = '<?xml version="1.0"?><gpx version="1.1"><trk><trkseg><trkpt lat="51.8" lon="104.8"/></trkseg></trk></gpx>';
+  function run(label, data) {
+    log('— пробую: ' + label);
+    // Вызов share строго синхронный в обработчике клика, await стоит уже
+    // на самом вызове — жест нажатия не гаснет.
+    var p;
+    try {
+      p = navigator.share(data);
+    } catch (e) {
+      log('✗ ' + label + ': синхронный бросок ' + (e && e.name ? e.name + ': ' + e.message : String(e)));
+      return;
+    }
+    p.then(function () { log('✓ ' + label + ': ОК'); })
+      .catch(function (e) {
+        if (e && e.name === 'AbortError') log('· ' + label + ': отмена (это норм)');
+        else log('✗ ' + label + ': ' + (e && e.name ? e.name + ': ' + e.message : String(e)));
+      });
+  }
+  document.getElementById('b1').addEventListener('click', function () {
+    run('текст без файла', { title: 'проверка roaMark' });
+  });
+  document.getElementById('b2').addEventListener('click', function () {
+    run('файл test.gpx', { files: [new File([GPX], 'test.gpx', { type: 'application/gpx+xml' })] });
+  });
+  document.getElementById('b3').addEventListener('click', function () {
+    run('файл «проверка трека.gpx»', { files: [new File([GPX], 'проверка трека.gpx', { type: 'application/gpx+xml' })] });
+  });
+  document.getElementById('b4').addEventListener('click', function () {
+    run('файл «проверка 😎.gpx»', { files: [new File([GPX], 'проверка 😎.gpx', { type: 'application/gpx+xml' })] });
+  });
+</script>
+</body>
+</html>
