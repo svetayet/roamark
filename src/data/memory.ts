@@ -130,6 +130,11 @@ export class InMemoryTrackRepository implements TrackRepository {
     return `data:application/gpx+xml;charset=utf-8,${encodeURIComponent(text)}`;
   }
 
+  async getGpxFile(id: string): Promise<File> {
+    const track = this.getTrackInternal(id);
+    return new File([track.gpxText], track.originalFilename, { type: 'application/gpx+xml' });
+  }
+
   /** Метки синхронизации (lastSyncAt) — паритет с LocalTrackRepository. */
   async getMeta<T>(key: string): Promise<T | null> {
     return (this.meta.get(key) ?? null) as T | null;

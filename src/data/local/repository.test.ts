@@ -94,6 +94,23 @@ test('байты: скачивание байт-в-байт, включая ки
   expect(stored).toEqual(original);
 });
 
+test('getGpxFile: оригинальное имя, тип gpx и байты байт-в-байт', async () => {
+  const { repo } = await freshRepo();
+  const home = (await repo.listDistricts())[0];
+  const track = await repo.addTrack(gpxFile('маршрут с кириллицей 😎.gpx'), {
+    districtId: home.id,
+    category: 'hike',
+    name: 'Кольцо Падуна',
+  });
+  const file = await repo.getGpxFile(track.id);
+  expect(file).toBeInstanceOf(File);
+  expect(file.name).toBe('маршрут с кириллицей 😎.gpx');
+  expect(file.type).toBe('application/gpx+xml');
+  const stored = new Uint8Array(await file.arrayBuffer());
+  const original = new Uint8Array(await gpxFile('маршрут с кириллицей 😎.gpx').arrayBuffer());
+  expect(stored).toEqual(original);
+});
+
 test('переживает переоткрытие: второй репозиторий видит трек', async () => {
   const { dbName, repo } = await freshRepo();
   const home = (await repo.listDistricts())[0];

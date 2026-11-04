@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { RepoProvider } from '../data/RepoContext';
 import { InMemoryTrackRepository } from '../data/memory';
 
@@ -120,5 +120,59 @@ test('неудачное удаление: сообщение, остаёмся 
   screen.getByRole('button', { name: 'удалить' }).click();
   (await screen.findByRole('button', { name: 'точно удалить?' })).click();
   expect(await screen.findByText('Не получилось удалить. Попробуй ещё раз.')).toBeTruthy();
+  expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
+});
+
+// —– «Поделиться» через Web Share API ——
+
+afterEach(() => {
+  // Заглушки navigator.share/canShare не должны протекать между тестами.
+  Reflect.deleteProperty(navigator, 'share');
+  Reflect.deleteProperty(navigator, 'canShare');
+});
+
+function stubShare(implementation: (data: ShareData) => Promise<void>) {
+  const shareSpy = vi.fn(implementation);
+  Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+  Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
+  return shareSpy;
+}
+
+test('без поддержки Web Share кнопки «Поделиться» нет', async () => {
+  const { repo, track } = await makeRepo();
+  renderAt(repo, track.id);
+  await screen.findByText('Кольцо Падуна');
+  expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
+});
+
+test('«Поделиться» вызывает navigator.share с файлом оригинального имени и типа', async () => {
+  const shareSpy = stubShare(() => Promise.resolve());
+  const { repo, track } = await makeRepo();
+  renderAt(repo, track.id);
+  (await screen.findByRole('button', { name: 'Поделиться' })).click();
+  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+  const arg = shareSpy.mock.calls[0][0];
+  expect(arg.files).toHaveLength(1);
+  const shared = arg.files?.[0];
+  expect(shared?.name).toBe('кольцо падуна 😎.gpx');
+  expect(shared?.type).toBe('application/gpx+xml');
+  expect(arg.title).toBe('Кольцо Падуна');
+});
+
+test('отказ пользователя от шеринга — не ошибка', async () => {
+  const shareSpy = stubShare(() => Promise.reject(new DOMException('отмена', 'AbortError')));
+  const { repo, track } = await makeRepo();
+  renderAt(repo, track.id);
+  (await screen.findByRole('button', { name: 'Поделиться' })).click();
+  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+  expect(screen.queryByText('Не получилось поделиться. Попробуй ещё раз.')).toBeNull();
+});
+
+test('ошибка шеринга показывает сообщение и оставляет страницу', async () => {
+  stubShare(() => Promise.reject(new DOMException('запрещено', 'NotAllowedError')));
+  const { repo, track } = await makeRepo();
+  renderAt(repo, track.id);
+  (await screen.findByRole('button', { name: 'Поделиться' })).click();
+  expect(await screen.findByText('Не получилось поделиться. Попробуй ещё раз.')).toBeTruthy();
   expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
 });

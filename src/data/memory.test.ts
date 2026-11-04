@@ -110,6 +110,22 @@ test('getGpxText байт-в-байт; getDownloadUrl отдаёт исходн�
   await expect(repo.getTrack('нет-такого')).rejects.toBeInstanceOf(RepositoryError);
 });
 
+test('getGpxFile: имя, тип и исходный текст как в файле', async () => {
+  const repo = new InMemoryTrackRepository();
+  const home = (await repo.listDistricts())[0];
+  const track = await repo.addTrack(gpxFile('лыжня.gpx'), {
+    districtId: home.id,
+    category: 'ski',
+    name: 'Лыжня',
+  });
+  const file = await repo.getGpxFile(track.id);
+  expect(file).toBeInstanceOf(File);
+  expect(file.name).toBe('лыжня.gpx');
+  expect(file.type).toBe('application/gpx+xml');
+  expect(await file.text()).toBe(GPX_3_POINTS);
+  await expect(repo.getGpxFile('нет-такого')).rejects.toBeInstanceOf(RepositoryError);
+});
+
 test('битый GPX — RepositoryError с человеческим сообщением (паритет с локальным)', async () => {
   const repo = new InMemoryTrackRepository();
   const home = (await repo.listDistricts())[0];

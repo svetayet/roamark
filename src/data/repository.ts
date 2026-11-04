@@ -52,4 +52,6 @@ export interface TrackRepository {
   getGpxText(id: string): Promise<string>;
   /** Ссылка на оригинальный файл для скачивания. */
   getDownloadUrl(id: string): Promise<string>;
+  /** Оригинальный .gpx как File с правильным MIME-типом (для Web Share API). */
+  getGpxFile(id: string): Promise<File>;
 }

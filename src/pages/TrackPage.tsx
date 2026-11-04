@@ -21,6 +21,7 @@ export function TrackPage() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
   // Подтверждение удаления — только кнопками: window.confirm в PWA
   // на телефоне молча подавляется и удаление тихо срывается.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -60,6 +61,16 @@ export function TrackPage() {
   }
   if (!track) return null;
 
+  // Web Share API умеет передавать файл с правильным MIME-типом напрямую
+  // в приложения телефона — в отличие от скачивания, где Chromium
+  // записывает blob как octet-stream и теряются обработчики GPX (Maps.me).
+  const shareSupported =
+    typeof navigator.share === 'function' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({
+      files: [new File([], 'track.gpx', { type: 'application/gpx+xml' })],
+    });
+
   const remove = async () => {
     setDeleteError(null);
     try {
@@ -68,6 +79,18 @@ export function TrackPage() {
     } catch {
       setDeleteError('Не получилось удалить. Попробуй ещё раз.');
       setConfirmingDelete(false);
+    }
+  };
+
+  const share = async () => {
+    setShareError(null);
+    try {
+      const file = await repo.getGpxFile(track.id);
+      await navigator.share?.({ files: [file], title: track.name });
+    } catch (e) {
+      // Отказ пользователя в системной шторке — нормальный исход, не ошибка.
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      setShareError('Не получилось поделиться. Попробуй ещё раз.');
     }
   };
 
@@ -125,15 +148,25 @@ export function TrackPage() {
           )}
         </p>
         {track.description && <p className="track-meta__desc">{track.description}</p>}
-        {downloadUrl && (
-          <a
-            className="btn btn--primary btn--big track-meta__download"
-            href={downloadUrl}
-            download={track.originalFilename}
-          >
-            Скачать GPX
-          </a>
+        {(downloadUrl || shareSupported) && (
+          <div className="track-meta__buttons">
+            {downloadUrl && (
+              <a
+                className="btn btn--primary btn--big track-meta__download"
+                href={downloadUrl}
+                download={track.originalFilename}
+              >
+                Скачать GPX
+              </a>
+            )}
+            {shareSupported && (
+              <button className="btn btn--big" onClick={() => void share()}>
+                Поделиться
+              </button>
+            )}
+          </div>
         )}
+        {shareError && <p className="form-errors">{shareError}</p>}
         {deleteError && <p className="form-errors">{deleteError}</p>}
       </div>
     </div>

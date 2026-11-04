@@ -224,6 +224,13 @@ export class LocalTrackRepository implements TrackRepository {
     return URL.createObjectURL(await this.asBlob(gpx));
   }
 
+  async getGpxFile(id: string): Promise<File> {
+    const db = await this.db;
+    const record = await this.getTrackRecord(db, id);
+    const gpx = await this.getGpx(id);
+    return new File([gpx.bytes], record.originalFilename, { type: 'application/gpx+xml' });
+  }
+
   // —– синхронизация: доступ к сырым записям, байтам и meta ——
 
   async listAllRecords(): Promise<SyncRecord[]> {
