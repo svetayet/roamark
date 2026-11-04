@@ -59,6 +59,27 @@ test('страница трека: имя, категория, км, район,
   expect(screen.getByTestId('map')).toBeTruthy();
 });
 
+test('скачивание предпочитает data:-ссылку от getGpxDataUrl', async () => {
+  const { repo, track } = await makeRepo();
+  vi.spyOn(repo, 'getDownloadUrl').mockResolvedValue('blob:mock');
+  vi.spyOn(repo, 'getGpxDataUrl').mockResolvedValue('data:application/gpx+xml;charset=utf-8,x');
+  renderAt(repo, track.id);
+  const link = await screen.findByRole('link', { name: /Скачать GPX/ });
+  expect(link.getAttribute('href')?.startsWith('data:application/gpx+xml')).toBe(true);
+});
+
+test('длинный data:-URL не влез в лимит — откат на blob:', async () => {
+  const { repo, track } = await makeRepo();
+  vi.spyOn(repo, 'getDownloadUrl').mockResolvedValue('blob:mock');
+  const dataSpy = vi.spyOn(repo, 'getGpxDataUrl').mockResolvedValue(
+    'data:application/gpx+xml;charset=utf-8,' + 'x'.repeat(2_100_000),
+  );
+  renderAt(repo, track.id);
+  const link = await screen.findByRole('link', { name: /Скачать GPX/ });
+  expect(dataSpy).toHaveBeenCalled();
+  expect(link.getAttribute('href')).toBe('blob:mock');
+});
+
 test('«изменить» ведёт на /add/:id', async () => {
   const { repo, track } = await makeRepo();
   renderAt(repo, track.id);

@@ -19,6 +19,10 @@ export function TrackPage() {
   const [district, setDistrict] = useState<District | null>(null);
   const [segments, setSegments] = useState<LatLng[][]>([]);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  // data:-ссылка для скачивания: MIME зашит в самой ссылке, а не в Blob,
+  // который Chromium записывает как octet-stream. Не всё донесётся — есть
+  // лимит на длину, длинные GPX откатываются на blob: (см. downloadHref).
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -58,6 +62,16 @@ export function TrackPage() {
       .catch(() => {
         if (live) setGpxFile(null);
       });
+    // Неудача чтения не должна ронять страницу: просто скачивание останется
+    // на blob:-ссылке.
+    repo
+      .getGpxDataUrl(id)
+      .then((u) => {
+        if (live) setDataUrl(u);
+      })
+      .catch(() => {
+        if (live) setDataUrl(null);
+      });
     return () => {
       live = false;
     };
@@ -78,6 +92,9 @@ export function TrackPage() {
   // Web Share API умеет передавать файл с правильным MIME-типом напрямую
   // в приложения телефона — в отличие от скачивания, где Chromium
   // записывает blob как octet-stream и теряются обработчики GPX (Maps.me).
+  // Лимит Chromium на длину data:-URL — ~2 МБ символов; сверх него откат.
+  const downloadHref = dataUrl && dataUrl.length <= 2_000_000 ? dataUrl : downloadUrl;
+
   const shareSupported =
     typeof navigator.share === 'function' &&
     typeof navigator.canShare === 'function' &&
@@ -168,12 +185,12 @@ export function TrackPage() {
           )}
         </p>
         {track.description && <p className="track-meta__desc">{track.description}</p>}
-        {(downloadUrl || shareSupported) && (
+        {(downloadHref || shareSupported) && (
           <div className="track-meta__buttons">
-            {downloadUrl && (
+            {downloadHref && (
               <a
                 className="btn btn--primary btn--big track-meta__download"
-                href={downloadUrl}
+                href={downloadHref}
                 download={track.originalFilename}
               >
                 Скачать GPX
