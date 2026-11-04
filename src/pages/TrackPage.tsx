@@ -90,7 +90,10 @@ export function TrackPage() {
     } catch (e) {
       // Отказ пользователя в системной шторке — нормальный исход, не ошибка.
       if (e instanceof DOMException && e.name === 'AbortError') return;
-      setShareError('Не получилось поделиться. Попробуй ещё раз.');
+      // Причина падения на телефоне ещё не установлена — показываем настоящую
+      // ошибку (тип и текст), по ней найдём причину.
+      const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      setShareError(`Не получилось поделиться: ${detail}`);
     }
   };
 

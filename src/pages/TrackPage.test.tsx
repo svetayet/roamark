@@ -165,14 +165,27 @@ test('отказ пользователя от шеринга — не ошиб�
   renderAt(repo, track.id);
   (await screen.findByRole('button', { name: 'Поделиться' })).click();
   await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
-  expect(screen.queryByText('Не получилось поделиться. Попробуй ещё раз.')).toBeNull();
+  expect(screen.queryByText(/Не получилось поделиться/)).toBeNull();
 });
 
-test('ошибка шеринга показывает сообщение и оставляет страницу', async () => {
+test('ошибка шеринга показывает подробность и оставляет страницу', async () => {
   stubShare(() => Promise.reject(new DOMException('запрещено', 'NotAllowedError')));
   const { repo, track } = await makeRepo();
   renderAt(repo, track.id);
   (await screen.findByRole('button', { name: 'Поделиться' })).click();
-  expect(await screen.findByText('Не получилось поделиться. Попробуй ещё раз.')).toBeTruthy();
+  expect(
+    await screen.findByText('Не получилось поделиться: NotAllowedError: запрещено'),
+  ).toBeTruthy();
   expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
+});
+
+test('ошибка чтения GPX тоже показывает подробность', async () => {
+  stubShare(() => Promise.resolve());
+  const { repo, track } = await makeRepo();
+  vi.spyOn(repo, 'getGpxFile').mockRejectedValueOnce(new Error('нет байтов'));
+  renderAt(repo, track.id);
+  (await screen.findByRole('button', { name: 'Поделиться' })).click();
+  expect(
+    await screen.findByText('Не получилось поделиться: Error: нет байтов'),
+  ).toBeTruthy();
 });
