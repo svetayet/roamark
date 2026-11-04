@@ -52,10 +52,7 @@ export interface TrackRepository {
   getGpxText(id: string): Promise<string>;
   /** Ссылка на оригинальный файл для скачивания. */
   getDownloadUrl(id: string): Promise<string>;
-  /** Оригинальный .gpx как File с правильным MIME-типом (для Web Share API). */
+  /** Оригинальный .gpx как File с правильным MIME-типом (для Web Share API;
+   * кнопка «Поделиться» приостановлена — метод оставлен на будущее). */
   getGpxFile(id: string): Promise<File>;
-
-  /** GPX как data:-URL с MIME прямо в ссылке — эксперимент против
-   * octet-stream при скачивании (Chromium стирает тип у blob-загрузок). */
-  getGpxDataUrl(id: string): Promise<string>;
 }

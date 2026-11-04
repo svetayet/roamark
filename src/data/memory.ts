@@ -135,11 +135,6 @@ export class InMemoryTrackRepository implements TrackRepository {
     return new File([track.gpxText], track.originalFilename, { type: 'application/gpx+xml' });
   }
 
-  /** В memory-реализации download-URL и так data:-ссылка — возвращаем её же. */
-  async getGpxDataUrl(id: string): Promise<string> {
-    return this.getDownloadUrl(id);
-  }
-
   /** Метки синхронизации (lastSyncAt) — паритет с LocalTrackRepository. */
   async getMeta<T>(key: string): Promise<T | null> {
     return (this.meta.get(key) ?? null) as T | null;

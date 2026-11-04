@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, vi } from 'vitest';
+import { afterEach, describe, vi } from 'vitest';
 import { RepoProvider } from '../data/RepoContext';
 import { InMemoryTrackRepository } from '../data/memory';
 
@@ -57,27 +57,6 @@ test('страница трека: имя, категория, км, район,
   expect(link.getAttribute('download')).toBe('кольцо падуна 😎.gpx');
   expect(link.getAttribute('href')).toBeTruthy();
   expect(screen.getByTestId('map')).toBeTruthy();
-});
-
-test('скачивание предпочитает data:-ссылку от getGpxDataUrl', async () => {
-  const { repo, track } = await makeRepo();
-  vi.spyOn(repo, 'getDownloadUrl').mockResolvedValue('blob:mock');
-  vi.spyOn(repo, 'getGpxDataUrl').mockResolvedValue('data:application/gpx+xml;charset=utf-8,x');
-  renderAt(repo, track.id);
-  const link = await screen.findByRole('link', { name: /Скачать GPX/ });
-  expect(link.getAttribute('href')?.startsWith('data:application/gpx+xml')).toBe(true);
-});
-
-test('длинный data:-URL не влез в лимит — откат на blob:', async () => {
-  const { repo, track } = await makeRepo();
-  vi.spyOn(repo, 'getDownloadUrl').mockResolvedValue('blob:mock');
-  const dataSpy = vi.spyOn(repo, 'getGpxDataUrl').mockResolvedValue(
-    'data:application/gpx+xml;charset=utf-8,' + 'x'.repeat(2_100_000),
-  );
-  renderAt(repo, track.id);
-  const link = await screen.findByRole('link', { name: /Скачать GPX/ });
-  expect(dataSpy).toHaveBeenCalled();
-  expect(link.getAttribute('href')).toBe('blob:mock');
 });
 
 test('«изменить» ведёт на /add/:id', async () => {
@@ -144,76 +123,81 @@ test('неудачное удаление: сообщение, остаёмся 
   expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
 });
 
-// —– «Поделиться» через Web Share API ——
+// —– «Поделиться» приостановлена (2026-11-04): функция зависит от браузера —
+// Samsung Internet отвечает NotAllowedError: Permission denied на передачу
+// любого файла. Код кнопки и эти тесты сохранены; когда вернёшь кнопку —
+// замени describe.skip обратно на describe.
 
-afterEach(() => {
-  // Заглушки navigator.share/canShare не должны протекать между тестами.
-  Reflect.deleteProperty(navigator, 'share');
-  Reflect.deleteProperty(navigator, 'canShare');
-});
+describe.skip('«Поделиться» через Web Share API (приостановлено)', () => {
+  afterEach(() => {
+    // Заглушки navigator.share/canShare не должны протекать между тестами.
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'canShare');
+  });
 
-function stubShare(implementation: (data: ShareData) => Promise<void>) {
-  const shareSpy = vi.fn(implementation);
-  Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
-  Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
-  return shareSpy;
-}
+  function stubShare(implementation: (data: ShareData) => Promise<void>) {
+    const shareSpy = vi.fn(implementation);
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: shareSpy });
+    return shareSpy;
+  }
 
-test('без поддержки Web Share кнопки «Поделиться» нет', async () => {
-  const { repo, track } = await makeRepo();
-  renderAt(repo, track.id);
-  await screen.findByText('Кольцо Падуна');
-  expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
-});
+  test('без поддержки Web Share кнопки «Поделиться» нет', async () => {
+    const { repo, track } = await makeRepo();
+    renderAt(repo, track.id);
+    await screen.findByText('Кольцо Падуна');
+    expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
+  });
 
-test('«Поделиться» вызывает navigator.share с файлом оригинального имени и типа', async () => {
-  const shareSpy = stubShare(() => Promise.resolve());
-  const { repo, track } = await makeRepo();
-  renderAt(repo, track.id);
-  (await screen.findByRole('button', { name: 'Поделиться' })).click();
-  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
-  const arg = shareSpy.mock.calls[0][0];
-  expect(arg.files).toHaveLength(1);
-  const shared = arg.files?.[0];
-  expect(shared?.name).toBe('кольцо падуна 😎.gpx');
-  expect(shared?.type).toBe('application/gpx+xml');
-  expect(arg.title).toBe('Кольцо Падуна');
-});
+  test('«Поделиться» вызывает navigator.share с файлом оригинального имени и типа', async () => {
+    const shareSpy = stubShare(() => Promise.resolve());
+    const { repo, track } = await makeRepo();
+    renderAt(repo, track.id);
+    (await screen.findByRole('button', { name: 'Поделиться' })).click();
+    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    const arg = shareSpy.mock.calls[0][0];
+    expect(arg.files).toHaveLength(1);
+    const shared = arg.files?.[0];
+    expect(shared?.name).toBe('кольцо падуна 😎.gpx');
+    expect(shared?.type).toBe('application/gpx+xml');
+    expect(arg.title).toBe('Кольцо Падуна');
+  });
 
-test('отказ пользователя от шеринга — не ошибка', async () => {
-  const shareSpy = stubShare(() => Promise.reject(new DOMException('отмена', 'AbortError')));
-  const { repo, track } = await makeRepo();
-  renderAt(repo, track.id);
-  (await screen.findByRole('button', { name: 'Поделиться' })).click();
-  await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
-  expect(screen.queryByText(/Не получилось поделиться/)).toBeNull();
-});
+  test('отказ пользователя от шеринга — не ошибка', async () => {
+    const shareSpy = stubShare(() => Promise.reject(new DOMException('отмена', 'AbortError')));
+    const { repo, track } = await makeRepo();
+    renderAt(repo, track.id);
+    (await screen.findByRole('button', { name: 'Поделиться' })).click();
+    await waitFor(() => expect(shareSpy).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/Не получилось поделиться/)).toBeNull();
+  });
 
-test('ошибка шеринга показывает подробность и оставляет страницу', async () => {
-  stubShare(() => Promise.reject(new DOMException('запрещено', 'NotAllowedError')));
-  const { repo, track } = await makeRepo();
-  renderAt(repo, track.id);
-  (await screen.findByRole('button', { name: 'Поделиться' })).click();
-  expect(
-    await screen.findByText('Не получилось поделиться: NotAllowedError: запрещено'),
-  ).toBeTruthy();
-  expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
-});
+  test('ошибка шеринга показывает подробность и оставляет страницу', async () => {
+    stubShare(() => Promise.reject(new DOMException('запрещено', 'NotAllowedError')));
+    const { repo, track } = await makeRepo();
+    renderAt(repo, track.id);
+    (await screen.findByRole('button', { name: 'Поделиться' })).click();
+    expect(
+      await screen.findByText('Не получилось поделиться: NotAllowedError: запрещено'),
+    ).toBeTruthy();
+    expect(screen.getByText('Кольцо Падуна')).toBeTruthy();
+  });
 
-test('пока GPX не прочитан, кнопки «Поделиться» нет', async () => {
-  stubShare(() => Promise.resolve());
-  const { repo, track } = await makeRepo();
-  vi.spyOn(repo, 'getGpxFile').mockReturnValueOnce(new Promise(() => {}));
-  renderAt(repo, track.id);
-  await screen.findByText('Кольцо Падуна');
-  expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
-});
+  test('пока GPX не прочитан, кнопки «Поделиться» нет', async () => {
+    stubShare(() => Promise.resolve());
+    const { repo, track } = await makeRepo();
+    vi.spyOn(repo, 'getGpxFile').mockReturnValueOnce(new Promise(() => {}));
+    renderAt(repo, track.id);
+    await screen.findByText('Кольцо Падуна');
+    expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
+  });
 
-test('если GPX не удалось прочитать, кнопки «Поделиться» нет', async () => {
-  stubShare(() => Promise.resolve());
-  const { repo, track } = await makeRepo();
-  vi.spyOn(repo, 'getGpxFile').mockRejectedValueOnce(new Error('нет байтов'));
-  renderAt(repo, track.id);
-  await screen.findByText('Кольцо Падуна');
-  expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
+  test('если GPX не удалось прочитать, кнопки «Поделиться» нет', async () => {
+    stubShare(() => Promise.resolve());
+    const { repo, track } = await makeRepo();
+    vi.spyOn(repo, 'getGpxFile').mockRejectedValueOnce(new Error('нет байтов'));
+    renderAt(repo, track.id);
+    await screen.findByText('Кольцо Падуна');
+    expect(screen.queryByRole('button', { name: 'Поделиться' })).toBeNull();
+  });
 });

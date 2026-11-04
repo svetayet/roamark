@@ -19,20 +19,19 @@ export function TrackPage() {
   const [district, setDistrict] = useState<District | null>(null);
   const [segments, setSegments] = useState<LatLng[][]>([]);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  // data:-ссылка для скачивания: MIME зашит в самой ссылке, а не в Blob,
-  // который Chromium записывает как octet-stream. Не всё донесётся — есть
-  // лимит на длину, длинные GPX откатываются на blob: (см. downloadHref).
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [shareError, setShareError] = useState<string | null>(null);
-  // GPX, готовый к Web Share: читается заранее, чтобы по клику отдать файл
-  // в navigator.share без единого await — иначе гаснет пользовательский
-  // жест и Android отвечает NotAllowedError: Permission denied.
-  const [gpxFile, setGpxFile] = useState<File | null>(null);
   // Подтверждение удаления — только кнопками: window.confirm в PWA
   // на телефоне молча подавляется и удаление тихо срывается.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // —— «Поделиться» (Web Share) приостановлено (2026-11-04) ——
+  // Кнопка зависима от браузера: Samsung Internet отвечает
+  // NotAllowedError: Permission denied на передачу любого файла
+  // (десктопный Edge — тоже), поэтому пока не делаем.
+  // Код сохранён на будущее — он закомментирован по всей странице
+  // (состояние, предзагрузка файла, обработчик, кнопка) и в тестах.
+  // const [shareError, setShareError] = useState<string | null>(null);
+  // const [gpxFile, setGpxFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -52,26 +51,16 @@ export function TrackPage() {
       .catch((e) => {
         if (live) setError(e instanceof RepositoryError ? e.message : 'Трек не найден.');
       });
-    // Отдельно от основного чтения: неудача не роняет страницу —
-    // просто не появится кнопка «Поделиться».
-    repo
-      .getGpxFile(id)
-      .then((f) => {
-        if (live) setGpxFile(f);
-      })
-      .catch(() => {
-        if (live) setGpxFile(null);
-      });
-    // Неудача чтения не должна ронять страницу: просто скачивание останется
-    // на blob:-ссылке.
-    repo
-      .getGpxDataUrl(id)
-      .then((u) => {
-        if (live) setDataUrl(u);
-      })
-      .catch(() => {
-        if (live) setDataUrl(null);
-      });
+    // Предзагрузка GPX для «Поделиться» — приостановлена вместе с кнопкой:
+    // файл читался заранее, чтобы navigator.share вызвать без await.
+    // repo
+    //   .getGpxFile(id)
+    //   .then((f) => {
+    //     if (live) setGpxFile(f);
+    //   })
+    //   .catch(() => {
+    //     if (live) setGpxFile(null);
+    //   });
     return () => {
       live = false;
     };
@@ -89,19 +78,6 @@ export function TrackPage() {
   }
   if (!track) return null;
 
-  // Web Share API умеет передавать файл с правильным MIME-типом напрямую
-  // в приложения телефона — в отличие от скачивания, где Chromium
-  // записывает blob как octet-stream и теряются обработчики GPX (Maps.me).
-  // Лимит Chromium на длину data:-URL — ~2 МБ символов; сверх него откат.
-  const downloadHref = dataUrl && dataUrl.length <= 2_000_000 ? dataUrl : downloadUrl;
-
-  const shareSupported =
-    typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare({
-      files: [new File([], 'track.gpx', { type: 'application/gpx+xml' })],
-    });
-
   const remove = async () => {
     setDeleteError(null);
     try {
@@ -113,23 +89,23 @@ export function TrackPage() {
     }
   };
 
-  const share = () => {
-    setShareError(null);
-    if (!track || !gpxFile) return;
-    // navigator.share вызывается строго синхронно в обработчике клика:
-    // любой await в пути нажатия гасит transient activation, и Android
-    // отвергает шаринг с NotAllowedError: Permission denied.
-    navigator.share
-      ?.({ files: [gpxFile], title: track.name })
-      .catch((e) => {
-        // Отказ пользователя в системной шторке — нормальный исход, не ошибка.
-        if (e instanceof DOMException && e.name === 'AbortError') return;
-        // Тип и текст настоящей ошибки показываем: телефоны ведут себя
-        // по-разному, без подробности причину не найти.
-        const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-        setShareError(`Не получилось поделиться: ${detail}`);
-      });
-  };
+  // const share = () => {
+  //   setShareError(null);
+  //   if (!track || !gpxFile) return;
+  //   // navigator.share вызывается строго синхронно в обработчике клика:
+  //   // любой await в пути нажатия гасит transient activation, и Android
+  //   // отвергает шаринг с NotAllowedError: Permission denied.
+  //   navigator.share
+  //     ?.({ files: [gpxFile], title: track.name })
+  //     .catch((e) => {
+  //       // Отказ пользователя в системной шторке — нормальный исход, не ошибка.
+  //       if (e instanceof DOMException && e.name === 'AbortError') return;
+  //       // Тип и текст настоящей ошибки показываем: телефоны ведут себя
+  //       // по-разному, без подробности причину не найти.
+  //       const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  //       setShareError(`Не получилось поделиться: ${detail}`);
+  //     });
+  // };
 
   return (
     <div className="page page--track">
@@ -185,25 +161,24 @@ export function TrackPage() {
           )}
         </p>
         {track.description && <p className="track-meta__desc">{track.description}</p>}
-        {(downloadHref || shareSupported) && (
+        {downloadUrl && (
           <div className="track-meta__buttons">
-            {downloadHref && (
-              <a
-                className="btn btn--primary btn--big track-meta__download"
-                href={downloadHref}
-                download={track.originalFilename}
-              >
-                Скачать GPX
-              </a>
-            )}
-            {shareSupported && gpxFile && (
+            <a
+              className="btn btn--primary btn--big track-meta__download"
+              href={downloadUrl}
+              download={track.originalFilename}
+            >
+              Скачать GPX
+            </a>
+            {/* «Поделиться» приостановлена: код закомментирован выше. */}
+            {/* {shareSupported && gpxFile && (
               <button className="btn btn--big" onClick={() => share()}>
                 Поделиться
               </button>
-            )}
+            )} */}
           </div>
         )}
-        {shareError && <p className="form-errors">{shareError}</p>}
+        {/* {shareError && <p className="form-errors">{shareError}</p>} */}
         {deleteError && <p className="form-errors">{deleteError}</p>}
       </div>
     </div>

@@ -111,25 +111,6 @@ test('getGpxFile: оригинальное имя, тип gpx и байты ба
   expect(stored).toEqual(original);
 });
 
-test('getGpxDataUrl: тип зашит в ссылке, текст раскодируется в исходный GPX', async () => {
-  const { repo } = await freshRepo();
-  const home = (await repo.listDistricts())[0];
-  const track = await repo.addTrack(gpxFile(), {
-    districtId: home.id,
-    category: 'hike',
-    name: 'Кольцо Падуна',
-  });
-  const url = await repo.getGpxDataUrl(track.id);
-  expect(url.startsWith('data:application/gpx+xml;charset=utf-8,')).toBe(true);
-  const text = decodeURIComponent(url.split(',').slice(1).join(','));
-  expect(text).toBe(GPX_RU);
-});
-
-test('getGpxDataUrl: нет трека — RepositoryError', async () => {
-  const { repo } = await freshRepo();
-  await expect(repo.getGpxDataUrl('нет-такого')).rejects.toBeInstanceOf(RepositoryError);
-});
-
 test('переживает переоткрытие: второй репозиторий видит трек', async () => {
   const { dbName, repo } = await freshRepo();
   const home = (await repo.listDistricts())[0];

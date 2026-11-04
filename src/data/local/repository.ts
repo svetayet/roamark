@@ -231,14 +231,6 @@ export class LocalTrackRepository implements TrackRepository {
     return new File([gpx.bytes], record.originalFilename, { type: 'application/gpx+xml' });
   }
 
-  /** data:-URL с MIME в самой ссылке: эксперимент против octet-stream
-   * у blob-загрузок (Chromium стирает тип при сохранении). */
-  async getGpxDataUrl(id: string): Promise<string> {
-    const gpx = await this.getGpx(id);
-    const text = new TextDecoder('utf-8').decode(gpx.bytes);
-    return `data:application/gpx+xml;charset=utf-8,${encodeURIComponent(text)}`;
-  }
-
   // —– синхронизация: доступ к сырым записям, байтам и meta ——
 
   async listAllRecords(): Promise<SyncRecord[]> {
